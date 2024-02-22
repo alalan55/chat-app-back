@@ -36,3 +36,14 @@ async def add_friend(shared_id: str, db: Session = Depends(get_db), user: dict =
     db.commit()
 
     return 'Usuário adicionado com sucesso'
+
+
+@router.get('/friends')
+async def get_friends_list(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    if user is None:
+        raise get_user_exception()
+
+    friends = db.query(models.Friends).filter(
+        models.Friends.owner_id == user.get('id')).all()
+
+    return friends
