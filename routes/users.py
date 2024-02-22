@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from database import SessionLocal
 from sqlalchemy.orm import Session
 from routes.auth import get_current_user, get_user_exception
+from pydantic import BaseModel
 import models
 
 router = APIRouter()
@@ -15,27 +16,54 @@ def get_db():
         db.close()
 
 
-# @router.post('/add-friend')
-# async def add_friend(shared_id: str, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+class FriendRequestIncoming(BaseModel):
+    friend_id: int
+    applicant_id: int
+    applicant_shared_id: str
+    friend_shared_id: str
+    status: str
 
-#     if user is None:
-#         raise get_user_exception()
 
-#     user_to_add = db.query(models.Users).filter(
-#         models.Users.shared_id == shared_id).first()
+@router.post('/manage-friendship')
+async def accept_or_refuse_friendship(friend_request: FriendRequestIncoming, shared_id: str, friendship_accept: bool, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    if user is None:
+        raise get_user_exception()
 
-#     if user_to_add is None:
-#         raise HTTPException(
-#             status_code=404, detail='Usuário não encontrado na base de dados')
+    if friendship_accept:
+        user_to_add = db.query(models.Users).filter(
+            models.Users.shared_id == shared_id).first()
 
-#     friends_model = models.Friends()
-#     friends_model.owner_id = user.get('id')
-#     friends_model.friend_id = shared_id
+        if user_to_add is None:
+            raise HTTPException(
+                status_code=404, detail='Usuário não encontrado na base de dados')
 
-#     db.add(friends_model)
-#     db.commit()
+        friends_model = models.Friends()
+        friends_model.owner_id = user.get('id')
+        friends_model.friend_id = shared_id
 
-#     return 'Usuário adicionado com sucesso'
+        db.add(friends_model)
+        db.commit()
+
+        # encontrar a solicitação de amizade
+        friendship_requested = db.query(models.FriendsRequests).filter(
+            models.FriendsRequests.applicant_shared_id == shared_id).filter(models.FriendsRequests.friend_id == user.get('id')).first()
+
+        if friendship_requested:
+            friendship_requested.status = 'accepted'
+            db.add(friendship_requested)
+            db.commit()
+
+        return f'Usuário {friend_request.applicant_shared_id} Adicionado na sua lista de amizades!'
+    else:
+        friendship_requested = db.query(models.FriendsRequests).filter(
+            models.FriendsRequests.applicant_shared_id == shared_id).filter(models.FriendsRequests.friend_id == user.get('id')).first()
+
+        if friend_request:
+            friendship_requested.status = 'refused'
+            db.add(friendship_requested)
+            db.commit()
+            return f'Usuário {friend_request} recusado!'
+
 
 @router.post('/add-friend')
 async def add_friend(shared_id: str, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
@@ -121,10 +149,3 @@ async def remove_friend(shared_id: str, db: Session = Depends(get_db), user: dic
     db.commit()
 
     return 'Usuário removido da sua lista de amizades :)'
-
-
-# necessário criar uma tabela de amigos pendentes. Esta tabela vai ter o id do requerente, id do amigo desejado, status (pending, accepted, refused)
-# ao adicionar um amigo, vai ser adicionado nessa tabela de amizades pendentes
-# vai ter um listagem de todas as amizades pendentes
-# o usuário vai poder aceitar ou recusar a amizade
-# se a amizade for acecita, então ele é adicionado na lista de amigos e o status é alterado, se não, não é adicionado e o status também é alterado
