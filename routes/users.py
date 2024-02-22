@@ -47,3 +47,29 @@ async def get_friends_list(db: Session = Depends(get_db), user: dict = Depends(g
         models.Friends.owner_id == user.get('id')).all()
 
     return friends
+
+
+@router.delete('/friends/{shared_id}')
+async def remove_friend(shared_id: str, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    if user is None:
+        raise get_user_exception()
+
+    friend = db.query(models.Friends).filter(
+        models.Friends.friend_id == shared_id).first()
+
+    if friend is None:
+        raise HTTPException(
+            status_code=404, detail='Esse usuário não está na sua lista de amigos')
+
+    db.query(models.Friends).filter(
+        models.Friends.friend_id == shared_id).delete()
+    db.commit()
+
+    return 'Usuário removido da sua lista de amizades :)'
+
+
+# necessário criar uma tabela de amigos pendentes. Esta tabela vai ter o id do requerente, id do amigo desejado, status (pending, accepted, refused)
+# ao adicionar um amigo, vai ser adicionado nessa tabela de amizades pendentes
+# vai ter um listagem de todas as amizades pendentes
+# o usuário vai poder aceitar ou recusar a amizade
+# se a amizade for acecita, então ele é adicionado na lista de amigos e o status é alterado, se não, não é adicionado e o status também é alterado
