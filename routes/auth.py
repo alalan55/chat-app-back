@@ -1,21 +1,22 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
 from passlib.context import CryptContext
 from database import SessionLocal
 from sqlalchemy.orm import Session
-from typing import Annotated
+from typing import Annotated, Optional
+from datetime import timedelta, datetime
 import bcrypt
 import models
+from jose import jwt, JWTError
 
 router = APIRouter()
 
 bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
+oauth2_bearer = OAuth2PasswordBearer(tokenUrl='token')
 
-
-class CreateUser(BaseModel):
-    name: str
-    email: str
-    password: str
+SECRET_KEY = "KlgH6AzYDeZeGwD288to79I3vTHT8wp7"
+ALGOTITHM = 'HS256'
 
 
 def get_db():
@@ -25,13 +26,15 @@ def get_db():
     finally:
         db.close()
 
+class CreateUser(BaseModel):
+    name: str
+    email: str
+    password: str
 
-db_dependency = Annotated[Session, Depends(get_db)]
 
-
-@router.get('/auth')
-async def auth():
-    return 'Usuário autenticado'
+class UserLogin(BaseModel):
+    email: str
+    password: str
 
 
 @router.post('/')
@@ -47,7 +50,75 @@ async def create_user(user: CreateUser, db: Session = Depends(get_db)):
     return user_model
 
 
+@router.post('/login')
+async def login(user: UserLogin, db: Session = Depends(get_db)):
+    user = authenticate_user(user.email, user.password, db=db)
+
+    if not user:
+        raise HTTPException(
+            status_code=401, detail='Usuário ou senha incorretos')
+
+    token_expires = timedelta(minutes=60)
+    token = create_access_token(
+        user.email, user.id, expires_delta=token_expires)
+
+    user.hashed_password = None
+    return successful_response(200, token, user)
+
+
+def create_access_token(email: str, id: int, expires_delta: Optional[timedelta] = None):
+    encode = {'sub': email, 'id': id}
+
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+
+    encode.update({'exp': expire})
+
+    return jwt.encode(encode, SECRET_KEY, algorithm=ALGOTITHM)
+
+
 def password_hash(password):
     password_bytes = password.encode('utf-8')
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(password=password_bytes, salt=salt)
+
+
+def verify_password(password, hadshed):
+    password_byte = password.encode('utf-8')
+    return bcrypt.checkpw(password=password_byte, hashed_password=hadshed)
+
+
+def authenticate_user(email: str, password: str, db):
+    user = db.query(models.Users).filter(models.Users.email == email).first()
+
+    if not user:
+        return False
+    if not verify_password(password, user.hashed_password):
+        return False
+    return user
+
+
+def get_current_user(token: str = Depends(oauth2_bearer)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=ALGOTITHM)
+        email: str = payload.get('sub')
+        id: int = payload.get('id')
+
+        if email is None or id is None:
+            raise HTTPException(
+                status_code=404, detail='Usuário não encontrado')
+        return {'email': email, 'id': id}
+    except JWTError:
+        raise HTTPException(
+            status_code=404, detail='Não foi possível validar as credenciais')
+
+
+def successful_response(status_code: int, token: Optional[str] = None, content: Optional[dict] = None):
+    return {
+        "status": status_code,
+        "message": "Sucesso!",
+        "content": content,
+        "token": token
+    }
