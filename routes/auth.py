@@ -1,14 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from pydantic import BaseModel
 from passlib.context import CryptContext
-from database import SessionLocal
-from sqlalchemy.orm import Session
-from typing import Annotated, Optional
 from datetime import timedelta, datetime
+from sqlalchemy.orm import Session
+from database import SessionLocal
+from jose import jwt, JWTError
+from pydantic import BaseModel
+from typing import Optional
 import bcrypt
 import models
-from jose import jwt, JWTError
+import string
+import random
 
 router = APIRouter()
 
@@ -26,6 +28,7 @@ def get_db():
     finally:
         db.close()
 
+
 class CreateUser(BaseModel):
     name: str
     email: str
@@ -42,6 +45,7 @@ async def create_user(user: CreateUser, db: Session = Depends(get_db)):
     user_model = models.Users()
     user_model.name = user.name
     user_model.email = user.email
+    user_model.shared_id = create_random_shared_id(10)
     user_model.hashed_password = password_hash(user.password)
 
     db.add(user_model)
@@ -115,6 +119,10 @@ def get_current_user(token: str = Depends(oauth2_bearer)):
             status_code=404, detail='Não foi possível validar as credenciais')
 
 
+def create_random_shared_id(n: int):
+    return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(n))
+
+
 def successful_response(status_code: int, token: Optional[str] = None, content: Optional[dict] = None):
     return {
         "status": status_code,
@@ -122,3 +130,9 @@ def successful_response(status_code: int, token: Optional[str] = None, content: 
         "content": content,
         "token": token
     }
+
+
+def get_user_exception():
+    credential_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED, detail="Não foi possível validar as credenciais", headers={"WWW-Authenticate": "Bearer"})
+    return credential_exception

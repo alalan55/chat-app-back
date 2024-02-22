@@ -5,13 +5,14 @@
 # 4 Usuário pode criar grupo e adicionar amigos nele
 
 from fastapi import FastAPI
-from routes import auth, chat
+from routes import auth, chat, users
 
 
 app = FastAPI()
 
 app.include_router(auth.router)
 app.include_router(chat.router)
+app.include_router(users.router)
 
 
 @app.get('/')

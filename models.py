@@ -16,7 +16,7 @@ class Users(Base):
     hashed_password = Column(String)
     is_active = Column(Boolean, default=True)
 
-    friends = relationship('Friends', back_populates='friend_id')
+   # friends = relationship('Friends', back_populates='friend_id')
 
 
 class Friends(Base):
@@ -24,8 +24,9 @@ class Friends(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     owner_id = Column(Integer, ForeignKey('users.id'))
+    friend_id = Column(String, nullable=True)
 
-    friend_id = relationship('Users', back_populates='friends')
+  #  friend_id = relationship('Users', back_populates='friends')
 
 
 Base.metadata.create_all(bind=engine)
