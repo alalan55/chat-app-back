@@ -5,8 +5,14 @@
 # 4 Usuário pode criar grupo e adicionar amigos nele
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from routes import auth
+from database import engine, SessionLocal
+import models
+
 
 app = FastAPI()
+
+app.include_router(auth.router)
 
 
 class ConenctionManager():
