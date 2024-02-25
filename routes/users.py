@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from database import SessionLocal
 from sqlalchemy.orm import Session
 from routes.auth import get_current_user, get_user_exception
-from pydantic import BaseModel
+from service.user import UserService
+from typing import Optional
+from schemas.user_schema import FriendRequestIncoming
 import models
 
 router = APIRouter()
@@ -14,14 +16,6 @@ def get_db():
         yield db
     finally:
         db.close()
-
-
-class FriendRequestIncoming(BaseModel):
-    friend_id: int
-    applicant_id: int
-    applicant_shared_id: str
-    friend_shared_id: str
-    status: str
 
 
 @router.post('/manage-friendship')
@@ -37,115 +31,63 @@ async def accept_or_refuse_friendship(friend_request: FriendRequestIncoming, sha
             raise HTTPException(
                 status_code=404, detail='Usuário não encontrado na base de dados')
 
-        friends_model = models.Friends()
-        friends_model.owner_id = user.get('id')
-        friends_model.friend_id = shared_id
+        user_to_add_is_on_list = db.query(models.Friends).filter(
+            models.Friends.id == user_to_add.id).first()
 
-        db.add(friends_model)
-        db.commit()
+        if not user_to_add_is_on_list:
+            UserService(db).add_user_to_my_current_list(
+                user.get('id'), shared_id)
 
-        # encontrar a solicitação de amizade
-        friendship_requested = db.query(models.FriendsRequests).filter(
-            models.FriendsRequests.applicant_shared_id == shared_id).filter(models.FriendsRequests.friend_id == user.get('id')).first()
+            UserService(db).change_friendship_status(
+                'accept', shared_id, user.get('id'))
 
-        if friendship_requested:
-            friendship_requested.status = 'accepted'
-            db.add(friendship_requested)
-            db.commit()
-
-        return f'Usuário {friend_request.applicant_shared_id} Adicionado na sua lista de amizades!'
+            return custom_message(200, None, f'Usuário {friend_request.applicant_shared_id} Adicionado na sua lista de amizades!')
+        else:
+            return 'Usuário já está na sua lista de amizades'
     else:
-        friendship_requested = db.query(models.FriendsRequests).filter(
-            models.FriendsRequests.applicant_shared_id == shared_id).filter(models.FriendsRequests.friend_id == user.get('id')).first()
-
-        if friend_request:
-            friendship_requested.status = 'refused'
-            db.add(friendship_requested)
-            db.commit()
-            return f'Usuário {friend_request} recusado!'
+        UserService(db).change_friendship_status(
+            'refused', shared_id, user.get('id'))
+        return f'Usuário {friend_request} recusado!'
 
 
 @router.post('/add-friend')
 async def add_friend(shared_id: str, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+    response_info = UserService(db).add_friend(shared_id, user)
 
-    if user is None:
-        raise get_user_exception()
+    if response_info == 'ok':
+        return custom_message(status.HTTP_200_OK, None, 'Pedido de amizado enviado com sucesso :)')
 
-    user_to_add = db.query(models.Users).filter(
-        models.Users.shared_id == shared_id).first()
+    if response_info == 'pending':
+        return custom_message(status.HTTP_204_NO_CONTENT, None, 'Aguarde o usuário aceitar a sua solicitação')
 
-    current_user = db.query(models.Users).filter(
-        models.Users.id == user.get('id')).first()
+    if response_info == 'accepted':
+        return custom_message(status.HTTP_204_NO_CONTENT, None, 'Usuário já está na sua lista de amigos :)')
 
-    if current_user is None:
-        raise get_user_exception()
-
-    if user_to_add is None:
-        raise HTTPException(
-            status_code=404, detail='Usuário não encontrado na base de dados')
-
-    already_has_requested = db.query(models.FriendsRequests).filter(
-        models.FriendsRequests.friend_shared_id == shared_id).filter(models.FriendsRequests.applicant_id == user.get('id')).first()
-
-    if already_has_requested is None:
-        friend_incoming_model = models.FriendsRequests()
-        friend_incoming_model.applicant_shared_id = current_user.shared_id
-        friend_incoming_model.applicant_id = user.get('id')
-        friend_incoming_model.friend_id = user_to_add.id
-        friend_incoming_model.friend_shared_id = shared_id
-        friend_incoming_model.status = 'pending'
-
-        db.add(friend_incoming_model)
-        db.commit()
-
-        return 'Pedido de amizado enviado com sucesso'
-
-    if already_has_requested.status == 'pending':
-        return 'Aguarde o usuário aceitar a sua solicitação'
-
-    if already_has_requested.status == 'accepted':
-        return 'Usuário já está na sua lista de amigos :)'
-
-    if already_has_requested.status == 'refused':
-        return 'Usuário recusou sua solicitação'
+    if response_info == 'refused':
+        return custom_message(status.HTTP_204_NO_CONTENT, None, 'Usuário recusou sua solicitação')
 
 
 @router.get('/friends')
 async def get_friends_list(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
-    if user is None:
-        raise get_user_exception()
-
-    friends = db.query(models.Friends).filter(
-        models.Friends.owner_id == user.get('id')).all()
-
-    return friends
+    friends = UserService(db).get_friends_list(user)
+    return custom_message(status.HTTP_200_OK, friends, '')
 
 
 @router.get('/friends-request')
 async def get_friends_requests(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
-    if user is None:
-        raise get_user_exception()
-
-    friends = db.query(models.FriendsRequests).filter(
-        models.FriendsRequests.friend_id == user.get('id')).all()
-
-    return friends
+    friends = UserService(db).get_friends_requests(user)
+    return custom_message(status.HTTP_200_OK, friends, '')
 
 
 @router.delete('/friends/{shared_id}')
 async def remove_friend(shared_id: str, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
-    if user is None:
-        raise get_user_exception()
+    UserService(db).delete_friendship(shared_id, user)
+    return custom_message(status.HTTP_200_OK, None, 'Usuário removido da sua lista de amizades :)')
 
-    friend = db.query(models.Friends).filter(
-        models.Friends.friend_id == shared_id).first()
 
-    if friend is None:
-        raise HTTPException(
-            status_code=404, detail='Esse usuário não está na sua lista de amigos')
-
-    db.query(models.Friends).filter(
-        models.Friends.friend_id == shared_id).delete()
-    db.commit()
-
-    return 'Usuário removido da sua lista de amizades :)'
+def custom_message(status: Optional[int] = 200, content: Optional[dict | list | str | int] = None, message: Optional[str] = None):
+    return {
+        'status': status,
+        'message': message,
+        'content': content
+    }
