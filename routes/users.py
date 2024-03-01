@@ -1,11 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends,  status
 from database import SessionLocal
 from sqlalchemy.orm import Session
-from routes.auth import get_current_user, get_user_exception
+from routes.auth import get_current_user
 from service.user import UserService
 from typing import Optional
 from schemas.user_schema import FriendRequestIncoming
-import models
 
 router = APIRouter()
 
@@ -20,7 +19,7 @@ def get_db():
 
 @router.post('/manage-friendship')
 async def accept_or_refuse_friendship(friend_request: FriendRequestIncoming, user_to_add_id: str, friendship_accept: bool, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
-    current_status = UserService(db).manege_friendship(
+    current_status = UserService(db).friendship_management(
         user_to_add_id, user, friendship_accept)
 
     if current_status == 'accepted':

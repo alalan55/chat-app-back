@@ -103,7 +103,7 @@ class UserService:
 
             return UserRequestStatus[already_has_requested.status.upper()].value
 
-    def manege_friendship(self, user_to_add_id: str, user: dict, friendship_accept: bool):
+    def friendship_management(self, user_to_add_id: str, user: dict, friendship_accept: bool):
         user_is_valid = AuthService(self.session).user_is_validated(user)
 
         if user_is_valid:
@@ -120,17 +120,25 @@ class UserService:
                 user_to_add_is_on_list = self.session.query(models.Friends).filter(
                     models.Friends.id == user_to_add.id).first()
 
+                current_user = self.session.query(models.Users).filter(
+                    models.Users.id == user_id).first()
+
                 if not user_to_add_is_on_list:
                     self.add_user_to_my_current_list(user_id, user_to_add_id)
 
                     self.change_friendship_status(
                         'accepted', user_to_add_id, user_id)
 
+                    # adicionar o usuário user_id na lista do user_to_add_id
+                    self.add_user_to_my_current_list(
+                        user_to_add.id, current_user.shared_id)
+
                     return 'accepted'
                 else:
                     return 'invalid'
             else:
-                self.change_friendship_status('refused', user_to_add_id, user_id)
+                self.change_friendship_status(
+                    'refused', user_to_add_id, user_id)
                 return 'refused'
 
 
