@@ -73,18 +73,20 @@ class UserService:
 
         if user_is_valid:
 
+            current_user_id = user.get('id')
+
             user_to_add = self.session.query(models.Users).filter(
                 models.Users.shared_id == shared_id).first()
 
             current_user = self.session.query(models.Users).filter(
-                models.Users.id == user.get('id')).first()
+                models.Users.id == current_user_id).first()
 
             if user_to_add is None:
                 raise HTTPException(
                     status_code=404, detail='Usuário não encontrado na base de dados')
 
             already_has_requested = self.session.query(models.FriendsRequests).filter(
-                models.FriendsRequests.friend_shared_id == shared_id).filter(models.FriendsRequests.applicant_id == user.get('id')).first()
+                models.FriendsRequests.friend_shared_id == shared_id).filter(models.FriendsRequests.applicant_id == current_user_id).first()
 
             if already_has_requested is None:
                 friend_incoming_model = models.FriendsRequests()
@@ -101,9 +103,44 @@ class UserService:
 
             return UserRequestStatus[already_has_requested.status.upper()].value
 
+    def manege_friendship(self, user_to_add_id: str, user: dict, friendship_accept: bool):
+        user_is_valid = AuthService(self.session).user_is_validated(user)
+
+        if user_is_valid:
+            user_id = user.get('id')
+
+            if friendship_accept:
+                user_to_add = self.session.query(models.Users).filter(
+                    models.Users.shared_id == user_to_add_id).first()
+
+                if user_to_add is None:
+                    raise HTTPException(
+                        status_code=404, detail='Usuário não encontrado na base de dados')
+
+                user_to_add_is_on_list = self.session.query(models.Friends).filter(
+                    models.Friends.id == user_to_add.id).first()
+
+                if not user_to_add_is_on_list:
+                    self.add_user_to_my_current_list(user_id, user_to_add_id)
+
+                    self.change_friendship_status(
+                        'accepted', user_to_add_id, user_id)
+
+                    return 'accepted'
+                else:
+                    return 'invalid'
+            else:
+                self.change_friendship_status('refused', user_to_add_id, user_id)
+                return 'refused'
+
+
 def custom_message(status: Optional[int] = 200, content: Optional[dict | list | str | int] = None, message: Optional[str] = None):
     return {
         'status': status,
         'message': message,
         'content': content
     }
+
+
+# ao aceitar um asolicitação, os usuários tem que ser inseridos em ambas as listas
+# ao apagar uma solicitação, os usuários tem que ser excluidos mutuamente
