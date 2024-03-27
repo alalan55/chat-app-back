@@ -4,10 +4,14 @@ from sqlalchemy.orm import Session
 from routes.auth import get_current_user
 from service.user import UserService
 from typing import Optional
-from schemas.user_schema import FriendRequestIncoming
-
 router = APIRouter()
 
+# class TesteUser(BaseModel):
+#     name: str
+#     email: str
+#     profile_pic: str
+#     shared_id: str
+#     is_active: bool
 
 def get_db():
     db = SessionLocal()
@@ -17,13 +21,13 @@ def get_db():
         db.close()
 
 
-@router.post('/manage-friendship')
-async def accept_or_refuse_friendship(friend_request: FriendRequestIncoming, user_to_add_id: str, friendship_accept: bool, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+@router.get('/manage-friendship')
+async def accept_or_refuse_friendship(user_to_add_id: str, friendship_accept: bool, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     current_status = UserService(db).friendship_management(
         user_to_add_id, user, friendship_accept)
 
     if current_status == 'accepted':
-        return custom_message(status.HTTP_200_OK, None, f'Usuário {friend_request.applicant_shared_id} Adicionado na sua lista de amizades!')
+        return custom_message(status.HTTP_200_OK, None, f'Usuário {user_to_add_id} adicionado na sua lista de amizades!')
 
     if current_status == 'invalid':
         return custom_message(status.HTTP_204_NO_CONTENT, None, 'Usuário já está na sua lista de amizades!')
@@ -32,7 +36,7 @@ async def accept_or_refuse_friendship(friend_request: FriendRequestIncoming, use
         return custom_message(status.HTTP_204_NO_CONTENT, None, f'Usuário {user_to_add_id} recusado!')
 
 
-@router.post('/add-friend')
+@router.get('/add-friend')
 async def add_friend(user_to_add_id: str, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     response_info = UserService(db).add_friend(user_to_add_id, user)
 

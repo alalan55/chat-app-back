@@ -17,8 +17,13 @@ class UserService:
 
         if user_is_valid:
 
-            friends = self.session.query(models.Friends).filter(
-                models.Friends.owner_id == user.get('id')).all()
+            user_id = user.get('id')
+
+            friends = self.session.query(models.Users).join(
+                models.Friends, models.Users.shared_id == models.Friends.friend_id).filter(models.Friends.owner_id == user_id).all()
+
+            # friends = self.session.query(models.Friends).filter(
+            #     models.Friends.owner_id == user.get('id')).all()
 
             return friends
 
@@ -35,6 +40,9 @@ class UserService:
         user_is_valid = AuthService(self.session).user_is_validated(user)
 
         if user_is_valid:
+            current_user = self.session.query(models.Users).filter(
+                models.Users.id == user.get(id)).first()
+
             friend = self.session.query(models.Friends).filter(
                 models.Friends.friend_id == shared_id).first()
 
@@ -44,6 +52,10 @@ class UserService:
 
             self.session.query(models.Friends).filter(
                 models.Friends.friend_id == shared_id).delete()
+
+            # a linha abaixo remove também o usuário atual da lista do usuário que foi deletado
+            self.session.query(models.Friends).filter(
+                models.Friends.friend_id == current_user.shared_id).delete()
 
             return
 
@@ -118,7 +130,7 @@ class UserService:
                         status_code=404, detail='Usuário não encontrado na base de dados')
 
                 user_to_add_is_on_list = self.session.query(models.Friends).filter(
-                    models.Friends.id == user_to_add.id).first()
+                    models.Friends.friend_id == user_to_add.shared_id).first()
 
                 current_user = self.session.query(models.Users).filter(
                     models.Users.id == user_id).first()

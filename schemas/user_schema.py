@@ -4,7 +4,7 @@ from typing import Optional
 
 
 class FriendRequestIncoming(BaseModel):
-    applicant_id: int
+    # applicant_id: int
     applicant_shared_id: str
     friend_shared_id: str
 
