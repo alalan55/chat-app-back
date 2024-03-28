@@ -37,22 +37,29 @@ class UserService:
         user_is_valid = AuthService(self.session).user_is_validated(user)
 
         if user_is_valid:
+            user_id = user.get('id')
+
             current_user = self.session.query(models.Users).filter(
-                models.Users.id == user.get(id)).first()
+                models.Users.id == user_id).first()
+
+            user_to_remove = self.session.query(models.Users).filter(
+                models.Users.shared_id == shared_id).first()
 
             friend = self.session.query(models.Friends).filter(
-                models.Friends.friend_id == shared_id).first()
+                models.Friends.friend_id == shared_id).filter(models.Friends.owner_id == user_id).first()
 
             if friend is None:
                 raise HTTPException(
                     status_code=404, detail='Esse usuário não está na sua lista de amigos')
 
             self.session.query(models.Friends).filter(
-                models.Friends.friend_id == shared_id).delete()
+                models.Friends.friend_id == shared_id).filter(models.Friends.owner_id == user_id).delete()
+            self.session.commit()
 
             # a linha abaixo remove também o usuário atual da lista do usuário que foi deletado
             self.session.query(models.Friends).filter(
-                models.Friends.friend_id == current_user.shared_id).delete()
+                models.Friends.friend_id == current_user.shared_id).filter(models.Friends.owner_id == user_to_remove.id).delete()
+            self.session.commit()
 
             return
 

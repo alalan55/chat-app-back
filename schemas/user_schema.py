@@ -17,6 +17,7 @@ class UserRequestStatus(enum.Enum):
 
 
 class UserToBeReturnedToFriends(BaseModel):
+    id: int
     name: str
     email: str
     profile_pic: Optional[str] = None
