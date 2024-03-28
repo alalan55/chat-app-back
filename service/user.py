@@ -22,9 +22,6 @@ class UserService:
             friends = self.session.query(models.Users).join(
                 models.Friends, models.Users.shared_id == models.Friends.friend_id).filter(models.Friends.owner_id == user_id).all()
 
-            # friends = self.session.query(models.Friends).filter(
-            #     models.Friends.owner_id == user.get('id')).all()
-
             return friends
 
     def get_friends_requests(self, user: dict):

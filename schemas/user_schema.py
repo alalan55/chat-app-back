@@ -1,6 +1,6 @@
 import enum
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 
 
 class FriendRequestIncoming(BaseModel):
@@ -14,6 +14,20 @@ class UserRequestStatus(enum.Enum):
     PENDING = 'pending'
     ACCEPTED = 'accepted'
     REFUSED = 'refused'
+
+
+class UserToBeReturnedToFriends(BaseModel):
+    name: str
+    email: str
+    profile_pic: Optional[str] = None
+    shared_id: str
+    is_active: bool
+
+
+class UserListResponse(BaseModel):
+    status: int
+    message: str
+    content: List[UserToBeReturnedToFriends]
 
 # friend_shared_id deve virar my_shared_id
 # friend_id deve virar my_id

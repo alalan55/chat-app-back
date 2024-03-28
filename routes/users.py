@@ -4,14 +4,9 @@ from sqlalchemy.orm import Session
 from routes.auth import get_current_user
 from service.user import UserService
 from typing import Optional
+from schemas.user_schema import UserListResponse
 router = APIRouter()
 
-# class TesteUser(BaseModel):
-#     name: str
-#     email: str
-#     profile_pic: str
-#     shared_id: str
-#     is_active: bool
 
 def get_db():
     db = SessionLocal()
@@ -53,7 +48,7 @@ async def add_friend(user_to_add_id: str, db: Session = Depends(get_db), user: d
         return custom_message(status.HTTP_204_NO_CONTENT, None, 'Usuário recusou sua solicitação')
 
 
-@router.get('/friends')
+@router.get('/friends', response_model=UserListResponse)
 async def get_friends_list(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     friends = UserService(db).get_friends_list(user)
     return custom_message(status.HTTP_200_OK, friends, '')
