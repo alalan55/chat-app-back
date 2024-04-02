@@ -15,7 +15,6 @@ class Users(Base):
     shared_id = Column(Integer)
     hashed_password = Column(String)
     is_active = Column(Boolean, default=True)
-
     # user = relationship('Friends', back_populates='user')
     # friend = relationship('Friends', back_populates='friend')
 
@@ -27,10 +26,10 @@ class Friends(Base):
     owner_id = Column(Integer, ForeignKey('users.id'))
     # friend_id = Column(String, nullable=True)
     friend_id = Column(String, ForeignKey('users.shared_id'))
-
     user = relationship('Users', foreign_keys=[owner_id],  backref='user_info')
-    friend = relationship('Users', foreign_keys=[friend_id], backref='friend_info')
-  #  friend_id = relationship('Users', back_populates='friends')
+    friend = relationship('Users', foreign_keys=[
+                          friend_id], backref='friend_info')
+    # friend_id = relationship('Users', back_populates='friends')
 
 
 class FriendsRequests (Base):
