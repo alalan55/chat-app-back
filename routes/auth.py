@@ -7,6 +7,7 @@ from database import SessionLocal
 from jose import jwt, JWTError
 from pydantic import BaseModel
 from typing import Optional
+from service.auth import AuthService
 import bcrypt
 import models
 import string
@@ -42,31 +43,14 @@ class UserLogin(BaseModel):
 
 @router.post('/')
 async def create_user(user: CreateUser, db: Session = Depends(get_db)):
-    user_model = models.Users()
-    user_model.name = user.name
-    user_model.email = user.email
-    user_model.shared_id = create_random_shared_id(10)
-    user_model.hashed_password = password_hash(user.password)
-
-    db.add(user_model)
-    db.commit()
-
+    user_model = AuthService(db).create_user(user)
+    # Verificafr motivo de não estar retornando o usuário criado
     return user_model
 
 
 @router.post('/login')
 async def login(user: UserLogin, db: Session = Depends(get_db)):
-    user = authenticate_user(user.email, user.password, db=db)
-
-    if not user:
-        raise HTTPException(
-            status_code=401, detail='Usuário ou senha incorretos')
-
-    token_expires = timedelta(minutes=60)
-    token = create_access_token(
-        user.email, user.id, expires_delta=token_expires)
-
-    user.hashed_password = None
+    token, user = AuthService(db).login(user)
     return successful_response(200, token, user)
 
 
