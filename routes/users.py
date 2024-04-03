@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends,  status
 from database import SessionLocal
 from sqlalchemy.orm import Session
-from routes.auth import get_current_user
 from service.user import UserService
+from service.auth import AuthService
 from typing import Optional
 from schemas.user_schema import UserListResponse
 router = APIRouter()
@@ -17,7 +17,7 @@ def get_db():
 
 
 @router.get('/manage-friendship')
-async def accept_or_refuse_friendship(user_to_add_id: str, friendship_accept: bool, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+async def accept_or_refuse_friendship(user_to_add_id: str, friendship_accept: bool, db: Session = Depends(get_db), user: dict = Depends(AuthService().get_current_user)):
     current_status = UserService(db).friendship_management(
         user_to_add_id, user, friendship_accept)
 
@@ -32,7 +32,7 @@ async def accept_or_refuse_friendship(user_to_add_id: str, friendship_accept: bo
 
 
 @router.get('/add-friend')
-async def add_friend(user_to_add_id: str, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+async def add_friend(user_to_add_id: str, db: Session = Depends(get_db), user: dict = Depends(AuthService().get_current_user)):
     response_info = UserService(db).add_friend(user_to_add_id, user)
 
     if response_info == 'ok':
@@ -49,19 +49,19 @@ async def add_friend(user_to_add_id: str, db: Session = Depends(get_db), user: d
 
 
 @router.get('/friends', response_model=UserListResponse)
-async def get_friends_list(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+async def get_friends_list(db: Session = Depends(get_db), user: dict = Depends(AuthService().get_current_user)):
     friends = UserService(db).get_friends_list(user)
     return custom_message(status.HTTP_200_OK, friends, '')
 
 
 @router.get('/friends-request')
-async def get_friends_requests(db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+async def get_friends_requests(db: Session = Depends(get_db), user: dict = Depends(AuthService().get_current_user)):
     friends = UserService(db).get_friends_requests(user)
     return custom_message(status.HTTP_200_OK, friends, '')
 
 
 @router.delete('/friends/{shared_id}')
-async def remove_friend(shared_id: str, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
+async def remove_friend(shared_id: str, db: Session = Depends(get_db), user: dict = Depends(AuthService().get_current_user)):
     UserService(db).delete_friendship(shared_id, user)
     return custom_message(status.HTTP_200_OK, None, 'Usuário removido da sua lista de amizades :)')
 

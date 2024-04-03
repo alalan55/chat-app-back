@@ -4,22 +4,22 @@ import random
 import bcrypt
 import models
 from schemas.auth_schema import CreateUser, UserLogin
-from fastapi import HTTPException
+from fastapi import HTTPException, Depends
 from datetime import timedelta, datetime
 from typing import Optional
+from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 
 
 SECRET_KEY = "KlgH6AzYDeZeGwD288to79I3vTHT8wp7"
 ALGOTITHM = 'HS256'
-
+oauth2_bearer = OAuth2PasswordBearer(tokenUrl='token')
 
 class AuthService:
-    def __init__(self, session: Session):
+    def __init__(self, session: Optional[Session] = None):
         self.session = session
 
     def user_is_validated(self, user: dict):
-
         if user is None:
             return False
         else:
@@ -73,6 +73,22 @@ class AuthService:
         encode.update({'exp': expire})
 
         return jwt.encode(encode, SECRET_KEY, algorithm=ALGOTITHM)
+
+    def get_current_user(self, token: str = Depends(oauth2_bearer)):
+
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=ALGOTITHM)
+            email: str = payload.get('sub')
+            id: int = payload.get('id')
+
+            if email is None or id is None:
+                raise HTTPException(
+                    status_code=404, detail='Usuário não encontrado')
+            return {'email': email, 'id': id}
+
+        except JWTError:
+            raise HTTPException(
+                status_code=404, detail='Não foi possível validar as credenciais')
 
 
 def create_random_shared_id(n: int):
