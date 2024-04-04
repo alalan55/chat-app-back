@@ -2,16 +2,17 @@
 
 from database import Base, engine
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Table
-from sqlalchemy.orm import relationship, mapped_column, Mapped
+from sqlalchemy.orm import relationship, Mapped
 from typing import List
 
 
-association_table_friend_group_member = Table('association_table_friend_group_member', Base.metadata, 
-    Column('group_member_id', ForeignKey('groupMembers.id')), 
-    Column('user_id', ForeignKey('users.id')))
-
+association_table_friend_group_member = Table('association_table_friend_group_member', Base.metadata,
+                                              Column('group_member_id', ForeignKey(
+                                                  'groupMembers.id')),
+                                              Column('user_id', ForeignKey('users.id')))
 
 class Users(Base):
+
     __tablename__ = 'users'
 
     id = Column(Integer, primary_key=True, index=True)
@@ -21,8 +22,40 @@ class Users(Base):
     shared_id = Column(Integer)
     hashed_password = Column(String)
     is_active = Column(Boolean, default=True)
-    # user = relationship('Friends', back_populates='user')
-    # friend = relationship('Friends', back_populates='friend')
+
+
+class Friends(Base):
+    __tablename__ = 'friends'
+
+    id = Column(Integer, primary_key=True, index=True)
+    owner_id = Column(Integer, ForeignKey('users.id'))
+    # friend_id = Column(String, nullable=True)
+    friend_id = Column(String, ForeignKey('users.shared_id'))
+    user = relationship('Users', foreign_keys=[owner_id],  backref='user_info')
+    friend = relationship('Users', foreign_keys=[
+                          friend_id], backref='friend_info')
+    # friend_id = relationship('Users', back_populates='friends')
+
+
+class FriendsRequests (Base):
+    __tablename__ = 'friendsRequests'
+
+    id = Column(Integer, primary_key=True, index=True)
+    applicant_id = Column(Integer, ForeignKey('users.id'))
+    applicant_shared_id = Column(String)
+    friend_shared_id = Column(String, default='pending')
+    friend_id = Column(Integer)
+    status = Column(String)
+
+
+class Conversations(Base):
+    __tablename__ = 'conversations'
+
+    id = Column(Integer, primary_key=True, index=True)
+    converation_name = Column(String)
+    messages = relationship('Messages', back_populates='messageConversation')
+    groupMember = relationship('GroupMembers', back_populates='conversation')
+
 
 class GroupMembers(Base):
     __tablename__ = 'groupMembers'
@@ -36,36 +69,7 @@ class GroupMembers(Base):
 
     user_member_id: Mapped[List[Users]] = relationship(
         secondary=association_table_friend_group_member)
-    
-class Friends(Base):
-    __tablename__ = 'friends'
 
-    id = Column(Integer, primary_key=True, index=True)
-    owner_id = Column(Integer, ForeignKey('users.id'))
-    # friend_id = Column(String, nullable=True)
-    friend_id = Column(String, ForeignKey('users.shared_id'))
-    user = relationship('Users', foreign_keys=[owner_id],  backref='user_info')
-    friend = relationship('Users', foreign_keys=[
-                          friend_id], backref='friend_info')
-    # friend_id = relationship('Users', back_populates='friends')
-
-class FriendsRequests (Base):
-    __tablename__ = 'friendsRequests'
-
-    id = Column(Integer, primary_key=True, index=True)
-    applicant_id = Column(Integer, ForeignKey('users.id'))
-    applicant_shared_id = Column(String)
-    friend_shared_id = Column(String, default='pending')
-    friend_id = Column(Integer)
-    status = Column(String)
-
-class Conversations(Base):
-    __tablename__ = 'conversations'
-
-    id = Column(Integer, primary_key=True, index=True)
-    converation_name = Column(String)
-    messages = relationship('Messages', back_populates='messageConversation')
-    groupMember = relationship('GroupMembers', back_populates='conversation')
 
 class Messages(Base):
     __tablename__ = 'messages'
