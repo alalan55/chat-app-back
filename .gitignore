@@ -3,3 +3,4 @@ chat-app-env
 .DS_Store
 .vscode
 .env
+chat.db
