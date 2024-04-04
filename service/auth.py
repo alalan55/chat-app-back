@@ -25,7 +25,7 @@ class AuthService:
         else:
             return True
 
-    def create_user(self, user: CreateUser):
+    async def create_user(self, user: CreateUser):
         user_model = models.Users()
         user_model.name = user.name
         user_model.email = user.email

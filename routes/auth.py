@@ -18,9 +18,8 @@ def get_db():
 
 @router.post('/')
 async def create_user(user: CreateUser, db: Session = Depends(get_db)):
-    user_model = AuthService(db).create_user(user)
-    # Verificafr motivo de não estar retornando o usuário criado
-    return user_model
+    user_model = await AuthService(db).create_user(user)
+    return successful_response(201, None, user_model)
 
 
 @router.post('/login')

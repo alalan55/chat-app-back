@@ -17,7 +17,5 @@ def get_db():
 
 @router.get('/messages-test')
 async def health_messages():
-    message = MessageService().start_session
-    print('ROUTER', message)
-
+    message = await MessageService().start_session()
     return message
