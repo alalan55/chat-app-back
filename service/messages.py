@@ -20,32 +20,34 @@ class MessageService:
         if user_is_valid:
 
             user_id = user.get('id')
-
-            # ------------------------------------------------------------------------
-
-            # CRIAR UMA CONVERSATION
-            conversation_model = models.Conversations()
-            conversation_model.converation_name = conversation_info.name
-            self.session.add(conversation_model)
-            self.session.commit()
-
-            # ------------------------------------------------------------------------
-
-            # BUSCA A LISTA DE AMIGOS RECEBIDOS PARA FAZER A CORRETA INSERÇÃO no GroupMembers
-
-            # user_to_add_is_on_list = self.session.query(models.Friends).filter(
-            #     models.Friends.friend_id == user_to_add.shared_id).first()
-
             friends = []
-            member_to_add_to_group = []
 
+            # ------------------------------------------------------------------------
+            # BUSCA A LISTA DE AMIGOS RECEBIDOS PARA FAZER A CORRETA INSERÇÃO no GroupMembers
             # buscar lista de amigos reais, pois o usuário pode conseguir mandar algum id de usuário que não está na sua lista
+
             for id in conversation_info.friends_list:
                 user = self.session.query(models.Users).join(
                     models.Friends, models.Users.id == id).filter(models.Friends.owner_id == user_id).first()
 
                 if user:
                     friends.append(user)
+
+            # ------------------------------------------------------------------------
+            # se eu tiver só um amigo na lista, então é uma conversa pessoal e utilizo o nome dele na conversation name
+
+            new_conversation_name = friends[0].name if len(
+                conversation_info.friends_list) == 1 else conversation_info.name
+
+            # CRIAR UMA CONVERSATION
+            conversation_model = models.Conversations()
+            conversation_model.converation_name = new_conversation_name
+            self.session.add(conversation_model)
+            self.session.commit()
+
+            # ------------------------------------------------------------------------
+
+            member_to_add_to_group = []
 
             for member in friends:
                 member_model = models.GroupMembers()
@@ -76,14 +78,23 @@ class MessageService:
             # se algum amigo não estiver na lista de amigos, não fazer a inserção do mesmo no grupo
             # se for mensagem pessoal então nem deve criar a mensgem, deve retornar uma mensagem de erro
 
-        return 'MENSAGEM DO SERVICE'
+        return f'{'Grupo' if len(conversation_info.friends_list) == 1 else 'Chat'} iniciado com sucesso'
 
     async def get_chat_list(self, user: dict):
         user_is_valid = AuthService(self.session).user_is_validated(user)
 
         if user_is_valid:
-            chat_list = self.session.query(models.GroupMembers).filter(models.GroupMembers.user_id == user.get('id')).all()
+            user_id = user.get('id')
+            infos = []
 
-            print(chat_list, 'here')
+            chat_list = self.session.query(models.GroupMembers).filter(
+                models.GroupMembers.user_id == user.get('id')).all()
 
-            return chat_list
+            for chat in chat_list:
+                conversation_item = self.session.query(models.Conversations).join(
+                    models.GroupMembers, models.Conversations.id == chat.conversation_id).filter(models.GroupMembers.user_id == user_id).first()
+
+                if conversation_item:
+                    infos.append(conversation_item)
+
+            return infos
