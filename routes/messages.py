@@ -27,3 +27,9 @@ async def health_messages():
 async def create_conversation(conversation: CreateConversation, db: Session = Depends(get_db), user: dict = Depends(AuthService().get_current_user)):
     conversation = await MessageService(db).create_conversation(conversation, user)
     return f'{conversation}, hello, aqui foi feito'
+
+
+@router.get('/chat-list')
+async def get_chat_list(db: Session = Depends(get_db), user: dict = Depends(AuthService().get_current_user)):
+    chat_list = await MessageService(db).get_chat_list(user)
+    return chat_list

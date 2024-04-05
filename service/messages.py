@@ -20,7 +20,6 @@ class MessageService:
         if user_is_valid:
 
             user_id = user.get('id')
-            print(conversation_info)
 
             # ------------------------------------------------------------------------
 
@@ -44,7 +43,7 @@ class MessageService:
             for id in conversation_info.friends_list:
                 user = self.session.query(models.Users).join(
                     models.Friends, models.Users.id == id).filter(models.Friends.owner_id == user_id).first()
-                
+
                 if user:
                     friends.append(user)
 
@@ -78,3 +77,13 @@ class MessageService:
             # se for mensagem pessoal então nem deve criar a mensgem, deve retornar uma mensagem de erro
 
         return 'MENSAGEM DO SERVICE'
+
+    async def get_chat_list(self, user: dict):
+        user_is_valid = AuthService(self.session).user_is_validated(user)
+
+        if user_is_valid:
+            chat_list = self.session.query(models.GroupMembers).filter(models.GroupMembers.user_id == user.get('id')).all()
+
+            print(chat_list, 'here')
+
+            return chat_list
