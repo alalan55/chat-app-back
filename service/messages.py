@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from typing import Optional
 from service.auth import AuthService
-from schemas.messages_schema import CreateConversation
+from schemas.messages_schema import CreateConversation, SendMessage
 import models
 
 
@@ -38,6 +38,8 @@ class MessageService:
 
             new_conversation_name = friends[0].name if len(
                 conversation_info.friends_list) == 1 else conversation_info.name
+
+            # CASO SEJA UM CHAT PARTICULAR, TENHO QUE VERIFICAR SE JÁ NÃO TENHO UM CHAT CRIADO
 
             # CRIAR UMA CONVERSATION
             conversation_model = models.Conversations()
@@ -78,7 +80,7 @@ class MessageService:
             # se algum amigo não estiver na lista de amigos, não fazer a inserção do mesmo no grupo
             # se for mensagem pessoal então nem deve criar a mensgem, deve retornar uma mensagem de erro
 
-        return f'{'Grupo' if len(conversation_info.friends_list) == 1 else 'Chat'} iniciado com sucesso'
+        return f'{'Grupo' if len(conversation_info.friends_list) == 1 else 'Chat'} iniciado com sucesso!'
 
     async def get_chat_list(self, user: dict):
         user_is_valid = AuthService(self.session).user_is_validated(user)
@@ -98,3 +100,28 @@ class MessageService:
                     infos.append(conversation_item)
 
             return infos
+
+    async def create_message(self, info: SendMessage, user: dict):
+        user_is_valid = AuthService(self.session).user_is_validated(user)
+
+        if user_is_valid:
+
+            group_members = self.session.query(models.GroupMembers).filter(
+                models.GroupMembers.conversation_id == info.conversation_id).all()
+
+            is_private_chat = self.is_private_chat(group_members)
+
+            message_model = models.Messages()
+            message_model.conversation_id = info.conversation_id
+            message_model.from_user = info.from_user
+            message_model.to_user = info.to_user if is_private_chat else ""
+            message_model.message_text = info.message_text
+            message_model.sent_datetime = info.sent_datetime
+
+            self.session.add(message_model)
+            self.session.commit()
+
+            return message_model
+
+    def is_private_chat(self, infos: list):
+        return True if len(infos) == 2 else False
