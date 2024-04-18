@@ -28,13 +28,32 @@ class UserService:
         user_is_valid = AuthService(self.session).user_is_validated(user)
 
         if user_is_valid:
-            friends = self.session.query(models.Users).join(
-                models.FriendsRequests, models.Users.shared_id == models.FriendsRequests.applicant_shared_id).filter(models.FriendsRequests.friend_id == user.get('id')).all()
 
             # friends = self.session.query(models.FriendsRequests).filter(
             #     models.FriendsRequests.friend_id == user.get('id')).all()
 
-            return friends
+            friends = self.session.query(models.Users, models.FriendsRequests).join(
+                models.FriendsRequests, models.Users.shared_id == models.FriendsRequests.applicant_shared_id).filter(models.FriendsRequests.friend_id == user.get('id')).all()
+
+            friends_info = []
+
+            for user_info, request_info in friends:
+                friend_dict = {
+                    "user_id": user_info.id,
+                    "user_name": user_info.name,
+                    "user_email": user_info.email,
+                    "user_profile_pic": user_info.profile_pic,
+                    "user_shared_id": user_info.shared_id,
+                    "friend_request_id": request_info.id,
+                    "friend_applicant_id": request_info.applicant_id,
+                    "friend_applicant_shared_id": request_info.applicant_shared_id,
+                    "friend_friend_shared_id": request_info.friend_shared_id,
+                    "friend_id": request_info.friend_id,
+                    "friend_status": request_info.status
+                }
+                friends_info.append(friend_dict)
+
+            return friends_info
 
     def delete_friendship(self, shared_id: str, user: dict):
         user_is_valid = AuthService(self.session).user_is_validated(user)

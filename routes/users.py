@@ -54,7 +54,7 @@ async def get_friends_list(db: Session = Depends(get_db), user: dict = Depends(A
     return custom_message(status.HTTP_200_OK, friends, '')
 
 
-@router.get('/friends-request', response_model=UserListResponse)
+@router.get('/friends-request')
 async def get_friends_requests(db: Session = Depends(get_db), user: dict = Depends(AuthService().get_current_user)):
     friends = UserService(db).get_friends_requests(user)
     return custom_message(status.HTTP_200_OK, friends, '')
