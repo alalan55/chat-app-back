@@ -28,8 +28,11 @@ class UserService:
         user_is_valid = AuthService(self.session).user_is_validated(user)
 
         if user_is_valid:
-            friends = self.session.query(models.FriendsRequests).filter(
-                models.FriendsRequests.friend_id == user.get('id')).all()
+            friends = self.session.query(models.Users).join(
+                models.FriendsRequests, models.Users.shared_id == models.FriendsRequests.applicant_shared_id).filter(models.FriendsRequests.friend_id == user.get('id')).all()
+
+            # friends = self.session.query(models.FriendsRequests).filter(
+            #     models.FriendsRequests.friend_id == user.get('id')).all()
 
             return friends
 

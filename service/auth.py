@@ -77,6 +77,7 @@ class AuthService:
     def get_current_user(self, token: str = Depends(oauth2_bearer)):
 
         try:
+           
             payload = jwt.decode(token, SECRET_KEY, algorithms=ALGOTITHM)
             email: str = payload.get('sub')
             id: int = payload.get('id')
