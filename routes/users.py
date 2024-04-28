@@ -18,7 +18,7 @@ def get_db():
 
 @router.get('/manage-friendship')
 async def accept_or_refuse_friendship(user_to_add_id: str, friendship_accept: bool, db: Session = Depends(get_db), user: dict = Depends(AuthService().get_current_user)):
-    current_status = UserService(db).friendship_management(
+    current_status = await UserService(db).friendship_management(
         user_to_add_id, user, friendship_accept)
 
     if current_status == 'accepted':

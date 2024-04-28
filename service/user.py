@@ -141,43 +141,46 @@ class UserService:
 
             return UserRequestStatus[already_has_requested.status.upper()].value
 
-    def friendship_management(self, user_to_add_id: str, user: dict, friendship_accept: bool):
+    async def friendship_management(self, user_to_add_id: str, user: dict, friendship_accept: bool):
         user_is_valid = AuthService(self.session).user_is_validated(user)
 
         if user_is_valid:
-            user_id = user.get('id')
 
             if friendship_accept:
-                user_to_add = self.session.query(models.Users).filter(
-                    models.Users.shared_id == user_to_add_id).first()
-
-                if user_to_add is None:
-                    raise HTTPException(
-                        status_code=404, detail='Usuário não encontrado na base de dados')
-
-                user_to_add_is_on_list = self.session.query(models.Friends).filter(
-                    models.Friends.friend_id == user_to_add.shared_id).first()
-
-                current_user = self.session.query(models.Users).filter(
-                    models.Users.id == user_id).first()
-
-                if not user_to_add_is_on_list:
-                    self.add_user_to_my_current_list(user_id, user_to_add_id)
-
-                    self.change_friendship_status(
-                        'accepted', user_to_add_id, user_id)
-
-                    # adicionar o usuário user_id na lista do user_to_add_id
-                    self.add_user_to_my_current_list(
-                        user_to_add.id, current_user.shared_id)
-
-                    return 'accepted'
-                else:
-                    return 'invalid'
+                status = await self.handle_acepted_friend(user_to_add_id, user.get('id'))
+                return status
             else:
                 self.change_friendship_status(
-                    'refused', user_to_add_id, user_id)
+                    'refused', user_to_add_id, user.get('id'))
                 return 'refused'
+
+    async def handle_acepted_friend(self, user_to_add_id: str, current_user_id: int):
+
+        user_to_add = self.session.query(models.Users).filter(
+            models.Users.shared_id == user_to_add_id).first()
+
+        if user_to_add is None:
+            raise HTTPException(
+                status_code=404, detail='Usuário não encontrado na base de dados')
+
+        current_user = self.session.query(models.Users).filter(
+            models.Users.id == current_user_id).first()
+
+        user_to_add_is_on_list = self.session.query(models.Friends).filter(
+            models.Friends.friend_id == user_to_add.shared_id).filter(models.Friends.owner_id == current_user_id).first()
+
+        if not user_to_add_is_on_list:
+            self.add_user_to_my_current_list(current_user_id, user_to_add_id)
+
+            self.change_friendship_status(
+                'accepted', user_to_add_id, current_user_id)
+
+            self.add_user_to_my_current_list(
+                user_to_add.id, current_user.shared_id)
+
+            return 'accepted'
+
+        return 'invalid'
 
 
 def custom_message(status: Optional[int] = 200, content: Optional[dict | list | str | int] = None, message: Optional[str] = None):

@@ -1,13 +1,74 @@
 from sqlalchemy.orm import Session
 from typing import Optional
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi.encoders import jsonable_encoder
 from service.auth import AuthService
 from schemas.messages_schema import CreateConversation, SendMessage
 import models
+import uuid
+import json
 
 
 class MessageService:
     def __init__(self, session: Optional[Session] = None):
         self.session = session
+        self.active_connections: dict[str, set[WebSocket]] = {}
+        # informações das salas
+        # print(self.active_connections, 'NO init do método aqui')
+
+    async def connect(self, ws: WebSocket, room_id: int):
+        await ws.accept()
+
+        if room_id not in self.active_connections:
+            self.active_connections[room_id] = set()
+
+        self.active_connections[room_id].add(ws)
+
+        # print(self.active_connections[room_id], 'conexão criada em')
+
+    async def disconnect(self, ws: WebSocket, room_id: int):
+        # self.active_connections.remove(ws)
+        # id = self.find_connection(ws)
+        # del self.active_connections[id]
+        # return id
+        self.active_connections[room_id].remove(ws)
+
+    async def find_connection(self, ws: WebSocket):
+        val_list = list(self.active_connections.values())
+        key_list = list(self.active_connections.keys())
+        id = val_list.index(ws)
+        return key_list[id]
+
+    async def send_personal_message(self, message: SendMessage, ws: WebSocket, ):
+        # await ws.send_text(message)
+        json_message = jsonable_encoder(message)
+        await ws.send_json(json_message)
+
+    async def broadcast_message(self, message: str):
+        # for conn in self.active_connections:
+        #     await conn.send_text(message)
+        for conn in self.active_connections.values():
+            await conn.send_text(message)
+
+    async def broadcast_message_ws(self, message: SendMessage, room_id: int):
+        # print(self.active_connections)
+        for conn in self.active_connections[room_id]:
+            await self.send_personal_message(message, conn)
+
+    async def get_messages_of(self, token: str, room_id: int):
+
+        user = AuthService(self.session).get_current_user(token=token)
+        user_is_valid = AuthService(self.session).user_is_validated(user)
+
+        print(room_id, 'ROOM ID')
+
+        if user_is_valid:
+            messages = self.session.query(models.Messages).filter(
+                models.Messages.conversation_id == room_id).all()
+
+            return messages
+
+    # fim de informações das salas
 
     async def start_session(self):
         message: str = 'messages services work'
@@ -29,18 +90,18 @@ class MessageService:
             for id in conversation_info.friends_list:
                 user = self.session.query(models.Users).join(
                     models.Friends, models.Users.id == id).filter(models.Friends.owner_id == user_id).first()
-
                 if user:
                     friends.append(user)
 
             # ------------------------------------------------------------------------
             # se eu tiver só um amigo na lista, então é uma conversa pessoal e utilizo o nome dele na conversation name
 
-            new_conversation_name = friends[0].name if len(
+            new_conversation_name = 'CHAT PARTICULAR' if len(
                 conversation_info.friends_list) == 1 else conversation_info.name
 
             # CASO SEJA UM CHAT PARTICULAR, TENHO QUE VERIFICAR SE JÁ NÃO TENHO UM CHAT CRIADO
-
+            # PRECISO APRIMORAR O CONVERSATION PARA A CRITICA DE CIMA E TAMBÉM PARA ELE RECEBER UMA IMAGME DE GRUPO E MELHORAR A LÓGICA PARA O NOME DA CONVERSATION, VISTO QUE ESTOU USANDO O NOME DO USUÁRIO AMIGO
+            # PRECISO ALTERAR, VISTO QUE A CONVERSATION NÃO PODE FICAR COM O NOME DO USUÁRIO, PORQUE UM USER A VERIA O NOME B, MAS O USER B TAMBEM VERIA O NOME B
             # CRIAR UMA CONVERSATION
             conversation_model = models.Conversations()
             conversation_model.converation_name = new_conversation_name
@@ -117,6 +178,34 @@ class MessageService:
             message_model.to_user = info.to_user if is_private_chat else ""
             message_model.message_text = info.message_text
             message_model.sent_datetime = info.sent_datetime
+
+            self.session.add(message_model)
+            self.session.commit()
+
+            return message_model
+
+    async def create_message_ws(self, info: SendMessage, token: str):
+
+        user = AuthService(self.session).get_current_user(token=token)
+        user_is_valid = AuthService(self.session).user_is_validated(user)
+
+        if user_is_valid:
+            current_conversation = info.get('conversation_id')
+            # print(type(info), 'info here')
+            # print(user, 'user information')
+
+            group_members = self.session.query(models.GroupMembers).filter(
+                models.GroupMembers.conversation_id == current_conversation).all()
+
+            is_private_chat = self.is_private_chat(group_members)
+
+            message_model = models.Messages()
+            message_model.conversation_id = info.get('conversation_id')
+            message_model.from_user = info.get('from_user')
+            message_model.to_user = info.get(
+                'to_user') if is_private_chat else ""
+            message_model.message_text = info.get('message_text')
+            message_model.sent_datetime = info.get('sent_datetime')
 
             self.session.add(message_model)
             self.session.commit()

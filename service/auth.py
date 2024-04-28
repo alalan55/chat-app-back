@@ -15,6 +15,7 @@ SECRET_KEY = "KlgH6AzYDeZeGwD288to79I3vTHT8wp7"
 ALGOTITHM = 'HS256'
 oauth2_bearer = OAuth2PasswordBearer(tokenUrl='token')
 
+
 class AuthService:
     def __init__(self, session: Optional[Session] = None):
         self.session = session
@@ -77,7 +78,7 @@ class AuthService:
     def get_current_user(self, token: str = Depends(oauth2_bearer)):
 
         try:
-           
+
             payload = jwt.decode(token, SECRET_KEY, algorithms=ALGOTITHM)
             email: str = payload.get('sub')
             id: int = payload.get('id')
