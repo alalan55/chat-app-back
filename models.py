@@ -11,6 +11,7 @@ association_table_friend_group_member = Table('association_table_friend_group_me
                                                   'groupMembers.id')),
                                               Column('user_id', ForeignKey('users.id')))
 
+
 class Users(Base):
 
     __tablename__ = 'users'
@@ -22,6 +23,7 @@ class Users(Base):
     shared_id = Column(Integer)
     hashed_password = Column(String)
     is_active = Column(Boolean, default=True)
+    group_memberships = relationship("GroupMembers", back_populates="user")
 
 
 class Friends(Base):
@@ -53,6 +55,7 @@ class Conversations(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     converation_name = Column(String)
+    conversation_type = Column(Integer)
     messages = relationship('Messages', back_populates='messageConversation')
     groupMember = relationship('GroupMembers', back_populates='conversation')
 
@@ -65,6 +68,7 @@ class GroupMembers(Base):
     user_id = Column(Integer, ForeignKey('users.id'))
     joined_datetime = Column(String)
     left_datetime = Column(String)
+    user = relationship("Users", back_populates="group_memberships")
     conversation = relationship('Conversations', back_populates='groupMember')
 
     user_member_id: Mapped[List[Users]] = relationship(

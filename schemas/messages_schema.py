@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 class CreateConversation(BaseModel):
     friends_list: list[int]
+    conversation_type: int
     name: str
 
 

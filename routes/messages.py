@@ -76,8 +76,7 @@ async def chat(ws: WebSocket, conversation_id: int, token: str = Query(...), db:
 
                 # enviar mensagem para usuário
                 await message_manager.broadcast_message_ws(data, conversation_id)
-
-           # await message_manager.send_personal_message(f"You wrote: {data}", ws)
+                # await message_manager.send_personal_message(f"You wrote: {data}", ws)
 
     except WebSocketDisconnect:
         message_manager.disconnect(ws, conversation_id)

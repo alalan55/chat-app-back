@@ -96,15 +96,14 @@ class MessageService:
             # ------------------------------------------------------------------------
             # se eu tiver só um amigo na lista, então é uma conversa pessoal e utilizo o nome dele na conversation name
 
-            new_conversation_name = 'CHAT PARTICULAR' if len(
-                conversation_info.friends_list) == 1 else conversation_info.name
-
             # CASO SEJA UM CHAT PARTICULAR, TENHO QUE VERIFICAR SE JÁ NÃO TENHO UM CHAT CRIADO
             # PRECISO APRIMORAR O CONVERSATION PARA A CRITICA DE CIMA E TAMBÉM PARA ELE RECEBER UMA IMAGME DE GRUPO E MELHORAR A LÓGICA PARA O NOME DA CONVERSATION, VISTO QUE ESTOU USANDO O NOME DO USUÁRIO AMIGO
             # PRECISO ALTERAR, VISTO QUE A CONVERSATION NÃO PODE FICAR COM O NOME DO USUÁRIO, PORQUE UM USER A VERIA O NOME B, MAS O USER B TAMBEM VERIA O NOME B
             # CRIAR UMA CONVERSATION
             conversation_model = models.Conversations()
-            conversation_model.converation_name = new_conversation_name
+            conversation_model.converation_name = conversation_info.name
+            conversation_model.conversation_type = 0 if len(
+                conversation_info.friends_list) == 1 else 1
             self.session.add(conversation_model)
             self.session.commit()
 
@@ -149,6 +148,7 @@ class MessageService:
         if user_is_valid:
             user_id = user.get('id')
             infos = []
+            conversations_list = []
 
             chat_list = self.session.query(models.GroupMembers).filter(
                 models.GroupMembers.user_id == user.get('id')).all()
@@ -160,7 +160,20 @@ class MessageService:
                 if conversation_item:
                     infos.append(conversation_item)
 
-            return infos
+            for conv in infos:
+                participants = [
+                    member.user.name for member in conv.groupMember if member.user_id != user_id]
+
+                conversation_name = participants[0] if conv.conversation_type == 0 else conv.conversation_name
+
+                conversations_list.append({
+                    "id": conv.id,
+                    "conversation_name": conversation_name,
+                    "conversation_type": conv.conversation_type,
+                    "participants": participants,
+                })
+
+            return conversations_list
 
     async def create_message(self, info: SendMessage, user: dict):
         user_is_valid = AuthService(self.session).user_is_validated(user)
