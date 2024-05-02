@@ -21,6 +21,7 @@ def get_db():
 def get_database_dependencies(db: Session = Depends(get_db)):
     return db
 
+
 message_manager = MessageService(get_database_dependencies())
 
 

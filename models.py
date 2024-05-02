@@ -80,6 +80,7 @@ class Messages(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     conversation_id = Column(Integer, ForeignKey('conversations.id'))
+    from_user_name = Column(String)
     from_user = Column(String)
     to_user = Column(String)
     message_text = Column(String)

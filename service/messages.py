@@ -164,7 +164,7 @@ class MessageService:
                 participants = [
                     member.user.name for member in conv.groupMember if member.user_id != user_id]
 
-                conversation_name = participants[0] if conv.conversation_type == 0 else conv.conversation_name
+                conversation_name = participants[0] if conv.conversation_type == 0 else conv.converation_name
 
                 conversations_list.append({
                     "id": conv.id,
@@ -204,19 +204,19 @@ class MessageService:
 
         if user_is_valid:
             current_conversation = info.get('conversation_id')
-            # print(type(info), 'info here')
-            # print(user, 'user information')
+            current_user = self.session.query(models.Users).filter(
+                models.Users.id == user.get('id')).first()
 
-            group_members = self.session.query(models.GroupMembers).filter(
-                models.GroupMembers.conversation_id == current_conversation).all()
-
-            is_private_chat = self.is_private_chat(group_members)
+            # group_members = self.session.query(models.GroupMembers).filter(
+            #     models.GroupMembers.conversation_id == current_conversation).all()
+            # is_private_chat = self.is_private_chat(group_members)
+            # message_model.to_user = info.get('to_user') if is_private_chat else ""
 
             message_model = models.Messages()
+            message_model.from_user_name = current_user.name
             message_model.conversation_id = info.get('conversation_id')
             message_model.from_user = info.get('from_user')
-            message_model.to_user = info.get(
-                'to_user') if is_private_chat else ""
+            message_model.to_user = ''  # melhorar lógica para mandara info para o usuário
             message_model.message_text = info.get('message_text')
             message_model.sent_datetime = info.get('sent_datetime')
 
