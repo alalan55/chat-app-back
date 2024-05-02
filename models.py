@@ -56,6 +56,7 @@ class Conversations(Base):
     id = Column(Integer, primary_key=True, index=True)
     converation_name = Column(String)
     conversation_type = Column(Integer)
+    created_by = Column(Integer)
     messages = relationship('Messages', back_populates='messageConversation')
     groupMember = relationship('GroupMembers', back_populates='conversation')
 
@@ -68,6 +69,7 @@ class GroupMembers(Base):
     user_id = Column(Integer, ForeignKey('users.id'))
     joined_datetime = Column(String)
     left_datetime = Column(String)
+    role = Column(Integer)
     user = relationship("Users", back_populates="group_memberships")
     conversation = relationship('Conversations', back_populates='groupMember')
 

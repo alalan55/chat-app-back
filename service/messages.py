@@ -4,6 +4,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from fastapi.encoders import jsonable_encoder
 from service.auth import AuthService
 from schemas.messages_schema import CreateConversation, SendMessage
+from schemas.user_schema import UserGroupRole
 import models
 import uuid
 import json
@@ -101,6 +102,7 @@ class MessageService:
             # PRECISO ALTERAR, VISTO QUE A CONVERSATION NÃO PODE FICAR COM O NOME DO USUÁRIO, PORQUE UM USER A VERIA O NOME B, MAS O USER B TAMBEM VERIA O NOME B
             # CRIAR UMA CONVERSATION
             conversation_model = models.Conversations()
+            conversation_model.created_by = user_id
             conversation_model.converation_name = conversation_info.name
             conversation_model.conversation_type = 0 if len(
                 conversation_info.friends_list) == 1 else 1
@@ -117,6 +119,7 @@ class MessageService:
                 member_model.user_id = member.id
                 member_model.joined_datetime = ''
                 member_model.left_datetime = ''
+                member_model.role = UserGroupRole.NORMAL.value
                 member_to_add_to_group.append(member_model)
 
             if len(friends):
@@ -126,6 +129,7 @@ class MessageService:
                 current_user_to_group.user_id = user_id
                 current_user_to_group.joined_datetime = ''
                 current_user_to_group.left_datetime = ''
+                current_user_to_group.role = UserGroupRole.ADMIN.value
                 member_to_add_to_group.append(current_user_to_group)
 
                 self.session.bulk_save_objects(member_to_add_to_group)
@@ -170,6 +174,7 @@ class MessageService:
                     "id": conv.id,
                     "conversation_name": conversation_name,
                     "conversation_type": conv.conversation_type,
+                    "created_by": conv.created_by,
                     "participants": participants,
                 })
 

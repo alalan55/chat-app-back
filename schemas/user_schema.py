@@ -16,6 +16,11 @@ class UserRequestStatus(enum.Enum):
     REFUSED = 'refused'
 
 
+class UserGroupRole(enum.Enum):
+    ADMIN = 0
+    NORMAL = 1
+
+
 class UserToBeReturnedToFriends(BaseModel):
     id: int
     name: str
