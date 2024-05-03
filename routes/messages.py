@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends,  WebSocket, WebSocketDisconnect, Query
 from database import SessionLocal
+from typing import Optional
 from sqlalchemy.orm import Session
 from service.messages import MessageService
 from service.auth import AuthService
-from schemas.messages_schema import CreateConversation, SendMessage
+from schemas.messages_schema import CreateConversation, SendMessage, GroupInfoResponse
 from response.messages import successful_response
 
 
@@ -49,6 +50,12 @@ async def send_message(info: SendMessage, db: Session = Depends(get_db), user: d
     return successful_response(200, None, response, '')
 
 
+@router.get('/get-chat-info/{chat_id}', response_model=GroupInfoResponse)
+async def get_chat_information(chat_id: int, db: Session = Depends(get_db), user: dict = Depends(AuthService().get_current_user)):
+    chat_info = await MessageService(db).get_current_chat_info(chat_id, user)
+    return custom_message(200, chat_info, 'Sucesso!')
+
+
 @router.websocket('/connect-conversation/{conversation_id}')
 async def chat(ws: WebSocket, conversation_id: int, token: str = Query(...), db: Session = Depends(get_db),):
 
@@ -82,3 +89,11 @@ async def chat(ws: WebSocket, conversation_id: int, token: str = Query(...), db:
     except WebSocketDisconnect:
         message_manager.disconnect(ws, conversation_id)
         # await message_manager.broadcast_message(f'Cliente #{conversation_id} deixou o chat')
+
+
+def custom_message(status: Optional[int] = 200, content: Optional[dict | list | str | int] = None, message: Optional[str] = None):
+    return {
+        'status': status,
+        'message': message,
+        'content': content
+    }

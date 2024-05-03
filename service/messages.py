@@ -3,11 +3,8 @@ from typing import Optional
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from fastapi.encoders import jsonable_encoder
 from service.auth import AuthService
-from schemas.messages_schema import CreateConversation, SendMessage
-from schemas.user_schema import UserGroupRole
+from schemas.messages_schema import CreateConversation, SendMessage, UserGroupRole
 import models
-import uuid
-import json
 
 
 class MessageService:
@@ -229,6 +226,50 @@ class MessageService:
             self.session.commit()
 
             return message_model
+
+    async def get_current_chat_info(self, chat_id: int, user: dict):
+        user_is_valid = AuthService(self.session).user_is_validated(user)
+
+        if user_is_valid:
+
+            conversation_model = self.session.query(models.Conversations).filter(
+                models.Conversations.id == chat_id).first()
+
+            if conversation_model:
+
+                creator_user = self.session.query(models.Users).filter(
+                    models.Users.id == conversation_model.created_by).first()
+
+                # pegar os usuários participantes
+                member_list = self.session.query(models.GroupMembers).filter(
+                    models.GroupMembers.conversation_id == conversation_model.id).all()
+
+                member_user_list = []
+
+                for member in member_list:
+                    info = self.session.query(models.Users).join(
+                        models.GroupMembers, models.Users.id == member.id).filter(models.GroupMembers.user_id == member.id).first()
+
+                    if info:
+                        member_user_list.append(info)
+
+                # pegar os dados do usuário que criou o grupo
+                # creator_user = list(
+                #     filter(lambda x: x.id == conversation_model.created_by, member_user_list))
+
+                response_model = {
+                    "id": conversation_model.id,
+                    "conversation_name": conversation_model.converation_name,
+                    "conversation_type": conversation_model.conversation_type,
+                    "created_by": conversation_model.created_by,
+                    "participants": member_user_list,
+                    "creator": creator_user.name,
+                }
+
+                return response_model
+
+            else:
+                return 'Grupo não encontrado'
 
     def is_private_chat(self, infos: list):
         return True if len(infos) == 2 else False
