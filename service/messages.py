@@ -3,7 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from fastapi.encoders import jsonable_encoder
 from service.auth import AuthService
-from schemas.messages_schema import CreateConversation, SendMessage, UserGroupRole
+from schemas.messages_schema import CreateConversation, SendMessage, UserGroupRole, ConversationType
 import models
 
 
@@ -97,12 +97,15 @@ class MessageService:
             # CASO SEJA UM CHAT PARTICULAR, TENHO QUE VERIFICAR SE JÁ NÃO TENHO UM CHAT CRIADO
             # PRECISO APRIMORAR O CONVERSATION PARA A CRITICA DE CIMA E TAMBÉM PARA ELE RECEBER UMA IMAGME DE GRUPO E MELHORAR A LÓGICA PARA O NOME DA CONVERSATION, VISTO QUE ESTOU USANDO O NOME DO USUÁRIO AMIGO
             # PRECISO ALTERAR, VISTO QUE A CONVERSATION NÃO PODE FICAR COM O NOME DO USUÁRIO, PORQUE UM USER A VERIA O NOME B, MAS O USER B TAMBEM VERIA O NOME B
+
             # CRIAR UMA CONVERSATION
+            conv_type = ConversationType.PERSONAL.value if len(
+                conversation_info.friends_list) == 1 else ConversationType.GROUP.value
+
             conversation_model = models.Conversations()
             conversation_model.created_by = user_id
             conversation_model.converation_name = conversation_info.name
-            conversation_model.conversation_type = 0 if len(
-                conversation_info.friends_list) == 1 else 1
+            conversation_model.conversation_type = conv_type
             self.session.add(conversation_model)
             self.session.commit()
 
@@ -165,7 +168,7 @@ class MessageService:
                 participants = [
                     member.user.name for member in conv.groupMember if member.user_id != user_id]
 
-                conversation_name = participants[0] if conv.conversation_type == 0 else conv.converation_name
+                conversation_name = participants[0] if conv.conversation_type == ConversationType.PERSONAL.value else conv.converation_name
 
                 conversations_list.append({
                     "id": conv.id,
@@ -227,6 +230,12 @@ class MessageService:
 
             return message_model
 
+    async def get_user_information_from_conversation(self, user_list: list, current_user_id: int):
+        for user in user_list:
+            if user.id != current_user_id:
+                return user
+        return None
+
     async def get_current_chat_info(self, chat_id: int, user: dict):
         user_is_valid = AuthService(self.session).user_is_validated(user)
 
@@ -237,37 +246,70 @@ class MessageService:
 
             if conversation_model:
 
-                creator_user = self.session.query(models.Users).filter(
-                    models.Users.id == conversation_model.created_by).first()
+                if conversation_model.conversation_type == ConversationType.GROUP.value:
 
-                # pegar os usuários participantes
-                member_list = self.session.query(models.GroupMembers).filter(
-                    models.GroupMembers.conversation_id == conversation_model.id).all()
+                    # pegar os usuários participantes
+                    member_list = self.session.query(models.GroupMembers).filter(
+                        models.GroupMembers.conversation_id == conversation_model.id).all()
 
-                member_user_list = []
+                    member_user_list = []
 
-                for member in member_list:
-                    info = self.session.query(models.Users).join(
-                        models.GroupMembers, models.Users.id == member.id).filter(models.GroupMembers.user_id == member.id).first()
+                    for member in member_list:
 
-                    if info:
-                        member_user_list.append(info)
+                        info = self.session.query(models.Users).join(models.GroupMembers, models.Users.id == member.user_id).filter(
+                            models.GroupMembers.user_id == member.user_id).first()
 
-                # pegar os dados do usuário que criou o grupo
-                # creator_user = list(
-                #     filter(lambda x: x.id == conversation_model.created_by, member_user_list))
+                        if info:
+                            member_user_list.append(info)
 
-                response_model = {
-                    "id": conversation_model.id,
-                    "conversation_name": conversation_model.converation_name,
-                    "conversation_type": conversation_model.conversation_type,
-                    "created_by": conversation_model.created_by,
-                    "participants": member_user_list,
-                    "creator": creator_user.name,
-                }
+                    if conversation_model.conversation_type == ConversationType.GROUP.value:
+                        # pegar os dados do usuário que criou o grupo
+                        creator_user = list(
+                            filter(lambda x: x.id == conversation_model.created_by, member_user_list))[0]
+                    else:
+                        creator_user = self.session.query(models.Users).filter(
+                            models.Users.id == conversation_model.created_by).first()
 
-                return response_model
+                    response_model = {
+                        "id": conversation_model.id,
+                        "conversation_name": conversation_model.converation_name,
+                        "conversation_type": conversation_model.conversation_type,
+                        "created_by": conversation_model.created_by,
+                        "participants": member_user_list,
+                        "creator": creator_user.name,
+                    }
 
+                    return response_model
+                else:
+                    # pegar os usuários participantes da conversation
+                    member_list = self.session.query(models.GroupMembers).filter(
+                        models.GroupMembers.conversation_id == conversation_model.id).all()
+
+                    member_user_list = []
+
+                    for member in member_list:
+                        info = self.session.query(models.Users).join(models.GroupMembers, models.Users.id == member.user_id).filter(
+                            models.GroupMembers.user_id == member.user_id).first()
+
+                        if info:
+                            member_user_list.append(info)
+
+                    user_info = await self.get_user_information_from_conversation(member_user_list, user.get('id'))
+
+                    print(user_info, 'encontrado aqui cara')
+                    
+                    response_model = {
+                        "id": conversation_model.id,
+                        "conversation_name": conversation_model.converation_name,
+                        "conversation_type": conversation_model.conversation_type,
+                        "created_by": conversation_model.created_by,
+                        "participants": user_info,
+                        "creator": '',
+                    }
+
+                    print(response_model, 'response model')
+
+                    return response_model
             else:
                 return 'Grupo não encontrado'
 

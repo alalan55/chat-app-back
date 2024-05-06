@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from schemas.user_schema import UserToBeReturnedToFriends
-from typing import Dict
+from typing import Dict, Union, List
 import enum
 
 
@@ -23,18 +23,23 @@ class UserGroupRole(enum.Enum):
     NORMAL = 1
 
 
-class TestModel(BaseModel):
+class ConversationType(enum.Enum):
+    PERSONAL = 0
+    GROUP = 1
+
+
+class ChatInfoContent(BaseModel):
     id: int
     conversation_name: str
     conversation_type: int
     created_by: int
-    participants: list[UserToBeReturnedToFriends]
-    # creator: Dict[str, UserToBeReturnedToFriends]
-    # creator: UserToBeReturnedToFriends
-    creator:  str
+    participants: Union[List[UserToBeReturnedToFriends],
+                        UserToBeReturnedToFriends]
+
+    creator:  Union[str, None]
 
 
 class GroupInfoResponse(BaseModel):
     status: int
     message: str
-    content: TestModel
+    content: ChatInfoContent
