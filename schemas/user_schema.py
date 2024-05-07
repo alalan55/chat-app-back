@@ -23,6 +23,8 @@ class UserToBeReturnedToFriends(BaseModel):
     name: str
     email: str
     profile_pic: Optional[str] = None
+    coverage_pic: Optional[str] = None
+    status: Optional[str] = None
     shared_id: str
     is_active: bool
 

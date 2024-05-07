@@ -20,6 +20,8 @@ class Users(Base):
     name = Column(String)
     email = Column(String)
     profile_pic = Column(String)
+    coverage_pic = Column(String)
+    status = Column(String)
     shared_id = Column(Integer)
     hashed_password = Column(String)
     is_active = Column(Boolean, default=True)
@@ -54,7 +56,7 @@ class Conversations(Base):
     __tablename__ = 'conversations'
 
     id = Column(Integer, primary_key=True, index=True)
-    converation_name = Column(String)
+    conversation_name = Column(String)
     conversation_type = Column(Integer)
     created_by = Column(Integer)
     messages = relationship('Messages', back_populates='messageConversation')

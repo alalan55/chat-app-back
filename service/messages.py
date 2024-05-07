@@ -58,7 +58,7 @@ class MessageService:
         user = AuthService(self.session).get_current_user(token=token)
         user_is_valid = AuthService(self.session).user_is_validated(user)
 
-        print(room_id, 'ROOM ID')
+      #  print(room_id, 'ROOM ID')
 
         if user_is_valid:
             messages = self.session.query(models.Messages).filter(
@@ -104,7 +104,7 @@ class MessageService:
 
             conversation_model = models.Conversations()
             conversation_model.created_by = user_id
-            conversation_model.converation_name = conversation_info.name
+            conversation_model.conversation_name = conversation_info.name
             conversation_model.conversation_type = conv_type
             self.session.add(conversation_model)
             self.session.commit()
@@ -168,7 +168,7 @@ class MessageService:
                 participants = [
                     member.user.name for member in conv.groupMember if member.user_id != user_id]
 
-                conversation_name = participants[0] if conv.conversation_type == ConversationType.PERSONAL.value else conv.converation_name
+                conversation_name = participants[0] if conv.conversation_type == ConversationType.PERSONAL.value else conv.conversation_name
 
                 conversations_list.append({
                     "id": conv.id,
@@ -272,7 +272,7 @@ class MessageService:
 
                     response_model = {
                         "id": conversation_model.id,
-                        "conversation_name": conversation_model.converation_name,
+                        "conversation_name": conversation_model.conversation_name,
                         "conversation_type": conversation_model.conversation_type,
                         "created_by": conversation_model.created_by,
                         "participants": member_user_list,
@@ -296,18 +296,18 @@ class MessageService:
 
                     user_info = await self.get_user_information_from_conversation(member_user_list, user.get('id'))
 
-                    print(user_info, 'encontrado aqui cara')
+                  #  print(user_info, 'encontrado aqui cara')
                     
                     response_model = {
                         "id": conversation_model.id,
-                        "conversation_name": conversation_model.converation_name,
+                        "conversation_name": conversation_model.conversation_name,
                         "conversation_type": conversation_model.conversation_type,
                         "created_by": conversation_model.created_by,
                         "participants": user_info,
                         "creator": '',
                     }
 
-                    print(response_model, 'response model')
+                  #  print(response_model, 'response model')
 
                     return response_model
             else:
