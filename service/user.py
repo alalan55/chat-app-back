@@ -2,7 +2,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from service.auth import AuthService
 from typing import Optional
-from schemas.user_schema import UserRequestStatus
+from schemas.user_schema import UserRequestStatus, UpdateUser
 
 import models
 
@@ -10,6 +10,32 @@ import models
 class UserService:
     def __init__(self, session: Session):
         self.session = session
+
+    async def update_profile(self, id: int, info: UpdateUser, user: dict):
+
+        user_is_valid = AuthService(self.session).user_is_validated(user)
+
+        if user_is_valid and user.get('id') == id:
+
+            updated_user = self.session.query(
+                models.Users).filter(models.Users.id == id).first()
+            updated_user.name = info.name
+            updated_user.profile_pic = info.profile_pic
+            updated_user.coverage_pic = info.coverage_pic
+            updated_user.status = info.status
+            updated_user.shared_id = info.shared_id
+
+            self.session.add(updated_user)
+            self.session.commit()
+
+            return f'Usuário {info.name} atualizado com suecsso'
+
+    async def get_user_info(self, id: int, user: dict):
+        user_is_valid = AuthService(self.session).user_is_validated(user)
+        if user_is_valid:
+            user_info = self.session.query(models.Users).filter(
+                models.Users.id == id).first()
+            return user_info
 
     def get_friends_list(self, user: dict):
 

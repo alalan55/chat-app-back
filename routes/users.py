@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from service.user import UserService
 from service.auth import AuthService
 from typing import Optional
-from schemas.user_schema import UserListResponse
+from schemas.user_schema import UserListResponse, UpdateUser
 router = APIRouter()
 
 
@@ -64,6 +64,18 @@ async def get_friends_requests(db: Session = Depends(get_db), user: dict = Depen
 async def remove_friend(shared_id: str, db: Session = Depends(get_db), user: dict = Depends(AuthService().get_current_user)):
     UserService(db).delete_friendship(shared_id, user)
     return custom_message(status.HTTP_200_OK, None, 'Usuário removido da sua lista de amizades :)')
+
+
+@router.put('/{id}')
+async def update_user_info(new_user: UpdateUser, id: int, db: Session = Depends(get_db),  user: dict = Depends(AuthService().get_current_user)):
+    message = await UserService(db).update_profile(id, new_user, user)
+    return custom_message(status.HTTP_200_OK, None, message)
+
+
+@router.get('/{id}')
+async def get_user_info(id: int, db: Session = Depends(get_db),  user: dict = Depends(AuthService().get_current_user)):
+    user = await UserService(db).get_user_info(id, user)
+    return custom_message(status.HTTP_200_OK, user, '')
 
 
 def custom_message(status: Optional[int] = 200, content: Optional[dict | list | str | int] = None, message: Optional[str] = None):

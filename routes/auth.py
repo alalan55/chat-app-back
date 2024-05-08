@@ -22,11 +22,6 @@ async def create_user(user: CreateUser, db: Session = Depends(get_db)):
     return successful_response(201, None, user_model)
 
 
-@router.put('/{id}')
-async def update_user_info(user: CreateUser,id: int, db: Session = Depends(get_db)):
-    return f'Rota de edição de usuário em construção ${id} ${user}'
-
-
 @router.post('/login')
 async def login(user: UserLogin, db: Session = Depends(get_db)):
     token, user = AuthService(db).login(user)
