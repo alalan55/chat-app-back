@@ -18,9 +18,8 @@ def get_db():
 
 @router.post('/')
 async def create_user(user: CreateUser, db: Session = Depends(get_db)):
-    user_model = AuthService(db).create_user(user)
-    # Verificafr motivo de não estar retornando o usuário criado
-    return user_model
+    user_model = await AuthService(db).create_user(user)
+    return successful_response(201, None, user_model)
 
 
 @router.post('/login')
@@ -36,9 +35,3 @@ def successful_response(status_code: int, token: Optional[str] = None, content: 
         "content": content,
         "token": token
     }
-
-
-# def get_user_exception():
-#     credential_exception = HTTPException(
-#         status_code=status.HTTP_401_UNAUTHORIZED, detail="Não foi possível validar as credenciais", headers={"WWW-Authenticate": "Bearer"})
-#     return credential_exception

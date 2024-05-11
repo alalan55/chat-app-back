@@ -15,6 +15,7 @@ SECRET_KEY = "KlgH6AzYDeZeGwD288to79I3vTHT8wp7"
 ALGOTITHM = 'HS256'
 oauth2_bearer = OAuth2PasswordBearer(tokenUrl='token')
 
+
 class AuthService:
     def __init__(self, session: Optional[Session] = None):
         self.session = session
@@ -25,18 +26,28 @@ class AuthService:
         else:
             return True
 
-    def create_user(self, user: CreateUser):
-        user_model = models.Users()
-        user_model.name = user.name
-        user_model.email = user.email
-        user_model.shared_id = create_random_shared_id(10)
-        user_model.hashed_password = password_hash(user.password)
+    async def create_user(self, user: CreateUser):
 
-        self.session.add(user_model)
-        self.session.commit()
+        email_already_registered = self.session.query(
+            models.Users).filter(models.Users.email == user.email).first()
 
-        return user_model
+        if email_already_registered is None:
+            user_model = models.Users()
+            user_model.name = user.name
+            user_model.email = user.email
+            user_model.coverage_pic = ''
+            user_model.status = ''
+            user_model.profile_pic = ''
+            user_model.shared_id = create_random_shared_id(10)
+            user_model.hashed_password = password_hash(user.password)
 
+            self.session.add(user_model)
+            self.session.commit()
+
+            return user_model
+        else:
+            raise HTTPException(status_code=401, detail='E-mail já cadastrado')
+        
     def login(self, user: UserLogin):
         user = self.authenticate_user(user.email, user.password)
 
@@ -77,6 +88,7 @@ class AuthService:
     def get_current_user(self, token: str = Depends(oauth2_bearer)):
 
         try:
+
             payload = jwt.decode(token, SECRET_KEY, algorithms=ALGOTITHM)
             email: str = payload.get('sub')
             id: int = payload.get('id')

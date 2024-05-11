@@ -11,6 +11,7 @@ association_table_friend_group_member = Table('association_table_friend_group_me
                                                   'groupMembers.id')),
                                               Column('user_id', ForeignKey('users.id')))
 
+
 class Users(Base):
 
     __tablename__ = 'users'
@@ -19,9 +20,12 @@ class Users(Base):
     name = Column(String)
     email = Column(String)
     profile_pic = Column(String)
+    coverage_pic = Column(String)
+    status = Column(String)
     shared_id = Column(Integer)
     hashed_password = Column(String)
     is_active = Column(Boolean, default=True)
+    group_memberships = relationship("GroupMembers", back_populates="user")
 
 
 class Friends(Base):
@@ -52,7 +56,9 @@ class Conversations(Base):
     __tablename__ = 'conversations'
 
     id = Column(Integer, primary_key=True, index=True)
-    converation_name = Column(String)
+    conversation_name = Column(String)
+    conversation_type = Column(Integer)
+    created_by = Column(Integer)
     messages = relationship('Messages', back_populates='messageConversation')
     groupMember = relationship('GroupMembers', back_populates='conversation')
 
@@ -65,6 +71,8 @@ class GroupMembers(Base):
     user_id = Column(Integer, ForeignKey('users.id'))
     joined_datetime = Column(String)
     left_datetime = Column(String)
+    role = Column(Integer)
+    user = relationship("Users", back_populates="group_memberships")
     conversation = relationship('Conversations', back_populates='groupMember')
 
     user_member_id: Mapped[List[Users]] = relationship(
@@ -76,6 +84,7 @@ class Messages(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     conversation_id = Column(Integer, ForeignKey('conversations.id'))
+    from_user_name = Column(String)
     from_user = Column(String)
     to_user = Column(String)
     message_text = Column(String)

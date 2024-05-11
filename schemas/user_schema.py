@@ -16,11 +16,24 @@ class UserRequestStatus(enum.Enum):
     REFUSED = 'refused'
 
 
+class UpdateUser(BaseModel):
+    id: int
+    name: str
+    profile_pic: str
+    coverage_pic: str
+    status: str
+    shared_id: str
+
+
+
+
 class UserToBeReturnedToFriends(BaseModel):
     id: int
     name: str
     email: str
     profile_pic: Optional[str] = None
+    coverage_pic: Optional[str] = None
+    status: Optional[str] = None
     shared_id: str
     is_active: bool
 

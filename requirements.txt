@@ -1,2 +1,4 @@
 python-jose[cryptography]
 fastapi[all]
+broadcaster
+starlette

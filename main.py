@@ -1,13 +1,21 @@
 from fastapi import FastAPI
-from routes import auth, chat, users
+from routes import auth, chat, users, messages
 from fastapi.middleware.cors import CORSMiddleware
+from broadcaster import Broadcast
+
+# https://pypi.org/project/broadcaster/
 
 
-app = FastAPI()
+broadcast = Broadcast('memory://chat.db')
+
+app = FastAPI(on_startup=[broadcast.connect],
+              on_shutdown=[broadcast.disconnect])
+
 
 app.include_router(auth.router)
-app.include_router(chat.router)
+# app.include_router(chat.router)
 app.include_router(users.router)
+app.include_router(messages.router)
 
 app.add_middleware(
     CORSMiddleware,
