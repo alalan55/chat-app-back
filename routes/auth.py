@@ -5,7 +5,7 @@ from typing import Optional
 from service.auth import AuthService
 from schemas.auth_schema import CreateUser, UserLogin
 
-router = APIRouter()
+router = APIRouter(prefix='/auth', tags=['Auth'])
 
 
 def get_db():
