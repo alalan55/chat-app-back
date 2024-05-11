@@ -5,7 +5,9 @@ from service.user import UserService
 from service.auth import AuthService
 from typing import Optional
 from schemas.user_schema import UserListResponse, UpdateUser
-router = APIRouter()
+
+
+router = APIRouter(prefix='/user', tags=['Users'])
 
 
 def get_db():
@@ -66,13 +68,13 @@ async def remove_friend(shared_id: str, db: Session = Depends(get_db), user: dic
     return custom_message(status.HTTP_200_OK, None, 'Usuário removido da sua lista de amizades :)')
 
 
-@router.put('/user/{id}')
+@router.put('/{id}')
 async def update_user_info(new_user: UpdateUser, id: int, db: Session = Depends(get_db),  user: dict = Depends(AuthService().get_current_user)):
     message = await UserService(db).update_profile(id, new_user, user)
     return custom_message(status.HTTP_200_OK, None, message)
 
 
-@router.get('/user/{id}')
+@router.get('/{id}')
 async def get_user_info(id: int, db: Session = Depends(get_db),  user: dict = Depends(AuthService().get_current_user)):
     user = await UserService(db).get_user_info(id, user)
     return custom_message(status.HTTP_200_OK, user, '')

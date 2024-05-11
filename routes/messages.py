@@ -9,7 +9,7 @@ from response.messages import successful_response
 import logging
 
 
-router = APIRouter()
+router = APIRouter(prefix='/message', tags=['Messages'])
 
 logging.basicConfig(level=logging.DEBUG)
 
