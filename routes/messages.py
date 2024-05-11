@@ -6,9 +6,12 @@ from service.messages import MessageService
 from service.auth import AuthService
 from schemas.messages_schema import CreateConversation, SendMessage, GroupInfoResponse
 from response.messages import successful_response
+import logging
 
 
 router = APIRouter()
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 def get_db():
@@ -26,22 +29,22 @@ def get_database_dependencies(db: Session = Depends(get_db)):
 message_manager = MessageService(get_database_dependencies())
 
 
-@router.get('/messages-test')
+@router.get('/health-message')
 async def health_messages():
     message = await MessageService().start_session()
     return message
-
-
-@router.post('/create-conversation')
-async def create_conversation(conversation: CreateConversation, db: Session = Depends(get_db), user: dict = Depends(AuthService().get_current_user)):
-    conversation = await MessageService(db).create_conversation(conversation, user)
-    return f'{conversation}'
 
 
 @router.get('/chat-list')
 async def get_chat_list(db: Session = Depends(get_db), user: dict = Depends(AuthService().get_current_user)):
     chat_list = await MessageService(db).get_chat_list(user)
     return successful_response(200, None, chat_list, '')
+
+
+@router.post('/create-conversation')
+async def create_conversation(conversation: CreateConversation, db: Session = Depends(get_db), user: dict = Depends(AuthService().get_current_user)):
+    conversation = await MessageService(db).create_conversation(conversation, user)
+    return f'{conversation}'
 
 
 @router.post('/chating')
