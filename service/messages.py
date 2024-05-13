@@ -228,7 +228,6 @@ class MessageService:
 
             self.session.add(message_model)
             self.session.commit()
-
             return message_model
 
     async def get_current_chat_info(self, chat_id: int, user: dict):

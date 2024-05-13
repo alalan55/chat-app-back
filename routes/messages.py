@@ -82,6 +82,7 @@ async def chat(ws: WebSocket, conversation_id: int, token: str = Query(...), db:
             if "type" in data and data["type"] == "close":
                 message_manager.disconnect(ws, conversation_id)
             else:
+
                 # adicionar mensagem no banco de dados
                 await MessageService(db).create_message_ws(data, token)
 
