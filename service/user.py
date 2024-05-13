@@ -1,8 +1,10 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from service.auth import AuthService
+from service.messages import MessageService
 from typing import Optional
 from schemas.user_schema import UserRequestStatus, UpdateUser
+from schemas.messages_schema import ConversationType
 
 import models
 
@@ -10,6 +12,9 @@ import models
 class UserService:
     def __init__(self, session: Session):
         self.session = session
+
+    def health(self):
+        return 'User service health'
 
     async def update_profile(self, id: int, info: UpdateUser, user: dict):
 
@@ -35,6 +40,23 @@ class UserService:
         if user_is_valid:
             user_info = self.session.query(models.Users).filter(
                 models.Users.id == id).first()
+
+            # pegar quantidade de amigos
+            friends_quantity = len(self.get_friends_list(user))
+
+            # pegar a quantidade de grupos
+            conversations = await MessageService(self.session).get_chat_list(user)
+            groups_quantity = len(list(filter(lambda group: group.get(
+                'conversation_type') == ConversationType.GROUP.value, conversations)))
+
+            # pegar a quantidade de mensagens enviadas
+            messages_quantity = len(self.session.query(models.Messages).filter(
+                models.Messages.from_user == user_info.shared_id).all())
+
+            user_info.friends_quantity = friends_quantity
+            user_info.messages_quantity = messages_quantity
+            user_info.groups_quantity = groups_quantity
+
             return user_info
 
     def get_friends_list(self, user: dict):

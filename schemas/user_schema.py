@@ -34,6 +34,9 @@ class UserToBeReturnedToFriends(BaseModel):
     profile_pic: Optional[str] = None
     coverage_pic: Optional[str] = None
     status: Optional[str] = None
+    friends_quantity: Optional[int] = None
+    messages_quantity: Optional[int] = None
+    groups_quantity: Optional[int] = None
     shared_id: str
     is_active: bool
 

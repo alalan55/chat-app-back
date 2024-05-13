@@ -3,6 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from fastapi.encoders import jsonable_encoder
 from service.auth import AuthService
+# from service.user import UserService
 from schemas.messages_schema import CreateConversation, SendMessage, UserGroupRole, ConversationType
 import models
 
@@ -227,16 +228,11 @@ class MessageService:
 
             self.session.add(message_model)
             self.session.commit()
-
             return message_model
 
-    async def get_user_information_from_conversation(self, user_list: list, current_user_id: int):
-        for user in user_list:
-            if user.id != current_user_id:
-                return user
-        return None
-
     async def get_current_chat_info(self, chat_id: int, user: dict):
+        from service.user import UserService
+
         user_is_valid = AuthService(self.session).user_is_validated(user)
 
         if user_is_valid:
@@ -294,10 +290,9 @@ class MessageService:
                         if info:
                             member_user_list.append(info)
 
-                    user_info = await self.get_user_information_from_conversation(member_user_list, user.get('id'))
+                    founded_user = await self.get_user_information_from_conversation(member_user_list, user.get('id'))
+                    user_info = await UserService(self.session).get_user_info(founded_user.id, user)
 
-                  #  print(user_info, 'encontrado aqui cara')
-                    
                     response_model = {
                         "id": conversation_model.id,
                         "conversation_name": conversation_model.conversation_name,
@@ -307,11 +302,15 @@ class MessageService:
                         "creator": '',
                     }
 
-                  #  print(response_model, 'response model')
-
                     return response_model
             else:
                 return 'Grupo não encontrado'
+
+    async def get_user_information_from_conversation(self, user_list: list, current_user_id: int):
+        for user in user_list:
+            if user.id != current_user_id:
+                return user
+        return None
 
     def is_private_chat(self, infos: list):
         return True if len(infos) == 2 else False
