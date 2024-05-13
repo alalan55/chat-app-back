@@ -13,6 +13,9 @@ class UserService:
     def __init__(self, session: Session):
         self.session = session
 
+    def health(self):
+        return 'User service health'
+
     async def update_profile(self, id: int, info: UpdateUser, user: dict):
 
         user_is_valid = AuthService(self.session).user_is_validated(user)
