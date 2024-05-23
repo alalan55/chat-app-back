@@ -6,7 +6,10 @@ from service.auth import AuthService
 # from service.user import UserService
 from schemas.messages_schema import CreateConversation, SendMessage, UserGroupRole, ConversationType
 import models
+from queue import Queue
+from service.queue import QueueService
 
+event_queue = QueueService()
 
 class MessageService:
     def __init__(self, session: Optional[Session] = None):
@@ -109,6 +112,10 @@ class MessageService:
             conversation_model.conversation_type = conv_type
             self.session.add(conversation_model)
             self.session.commit()
+
+            event_queue.put(conversation_model.id)
+     
+            # print(list(QueueService.queue), 'lista no service')
 
             # ------------------------------------------------------------------------
 

@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from routes import auth, chat, users, messages
+from routes.messages import lifespan
 from fastapi.middleware.cors import CORSMiddleware
 from broadcaster import Broadcast
 
@@ -8,8 +9,10 @@ from broadcaster import Broadcast
 
 broadcast = Broadcast('memory://chat.db')
 
-app = FastAPI(on_startup=[broadcast.connect],
-              on_shutdown=[broadcast.disconnect])
+# app = FastAPI(on_startup=[broadcast.connect],
+#               on_shutdown=[broadcast.disconnect], lifespan=lifespan)
+
+app = FastAPI(lifespan=lifespan)
 
 
 app.include_router(auth.router)

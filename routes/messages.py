@@ -1,17 +1,25 @@
-from fastapi import APIRouter, Depends,  WebSocket, WebSocketDisconnect, Query
+from fastapi import APIRouter, Depends,  WebSocket, WebSocketDisconnect, Query, FastAPI
+from fastapi.concurrency import run_in_threadpool
+from starlette.websockets import WebSocketState
 from database import SessionLocal
 from typing import Optional
 from sqlalchemy.orm import Session
-from service.messages import MessageService
+from service.messages import MessageService, event_queue
 from service.auth import AuthService
 from schemas.messages_schema import CreateConversation, SendMessage, GroupInfoResponse
 from response.messages import successful_response
+from typing import List
 import logging
+import asyncio
+from contextlib import asynccontextmanager
+from queue import Empty
 
 
 router = APIRouter(prefix='/message', tags=['Messages'])
 
 logging.basicConfig(level=logging.DEBUG)
+
+websockets: List[WebSocket] = []
 
 
 def get_db():
@@ -27,6 +35,7 @@ def get_database_dependencies(db: Session = Depends(get_db)):
 
 
 message_manager = MessageService(get_database_dependencies())
+connections = MessageService(get_database_dependencies()).active_connections
 
 
 @router.get('/health-message')
@@ -38,12 +47,14 @@ async def health_messages():
 @router.get('/chat-list')
 async def get_chat_list(db: Session = Depends(get_db), user: dict = Depends(AuthService().get_current_user)):
     chat_list = await MessageService(db).get_chat_list(user)
+    # print(list(event_queue.queue), 'lista no chatlist')
     return successful_response(200, None, chat_list, '')
 
 
 @router.post('/create-conversation')
 async def create_conversation(conversation: CreateConversation, db: Session = Depends(get_db), user: dict = Depends(AuthService().get_current_user)):
     conversation = await MessageService(db).create_conversation(conversation, user)
+    # print(list(event_queue.queue), 'lista no create conversation')
     return f'{conversation}'
 
 
@@ -95,9 +106,118 @@ async def chat(ws: WebSocket, conversation_id: int, token: str = Query(...), db:
         # await message_manager.broadcast_message(f'Cliente #{conversation_id} deixou o chat')
 
 
+
+
+@router.websocket('/ws')
+async def websocket_endpoint(websocket: WebSocket):
+
+    await websocket.accept()
+    websockets.append(websocket)
+    try:
+        while True:
+
+            try:
+                # Tente obter um evento da fila, mas não bloqueie
+                event = event_queue.get_self().get_nowait()
+
+                for ws in websockets:
+                    await ws.send_json({'conversation_created': event, 'notification_type': 1})
+
+            except Empty:
+                if websocket.client_state != WebSocketState.CONNECTED:
+                    break
+                await asyncio.sleep(1)
+
+    except WebSocketDisconnect:
+
+        pass
+    finally:
+        websockets.remove(websocket)
+
+
+async def event_notifier(stop_event: asyncio.Event):
+    while True and not stop_event.is_set():
+        try:
+            event = event_queue.get_self().get_nowait()
+
+            disconnected_websockets = []
+            # Notifica todos os WebSockets conectados sobre o evento
+            for ws in websockets:
+                if ws.client_state == WebSocketState.CONNECTED:
+                    try:
+                        await ws.send_text(f"Novo evento: {event}")
+                    except WebSocketDisconnect:
+                        disconnected_websockets.append(ws)
+                else:
+                    disconnected_websockets.append(ws)
+
+            for ws in disconnected_websockets:
+                websockets.remove(ws)
+        except Empty:
+            await asyncio.sleep(1)
+
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    stop_event = asyncio.Event()
+    event_notifier_task = asyncio.create_task(event_notifier(stop_event))
+    try:
+        yield
+    finally:
+        # event_notifier_task.cancel()
+        stop_event.set()
+        await event_notifier_task
+        for ws in websockets:
+            await ws.close()
+
+
 def custom_message(status: Optional[int] = 200, content: Optional[dict | list | str | int] = None, message: Optional[str] = None):
     return {
         'status': status,
         'message': message,
         'content': content
     }
+
+
+
+
+# @router.websocket('/ws')
+# async def websocket_endpoint(websocket: WebSocket):
+#     await websocket.accept()
+#     websockets.append(websocket)
+#     # print('pre lista de ws', websockets)
+#     try:
+#         while True:
+#             if websocket.client_state != WebSocketState.CONNECTED:
+#                 break
+#             try:
+#                 # Tente obter um evento da fila, mas não bloqueie
+#                 event = event_queue.get_nowait()
+#                 await websocket.send_json({'conversation_created': 'test', 'notification_type': 1})
+#             except asyncio.QueueEmpty:
+#                 await asyncio.sleep(0.1)
+#                 continue
+
+#             await websocket.send_json({'conversation_created': event, 'notification_type': 1})
+
+#     except WebSocketDisconnect:
+
+#         pass
+#     finally:
+#         websockets.remove(websocket)
+
+
+
+
+# async def event_notifier():
+#     while True:
+#         try:
+#             event = event_queue.get_nowait()
+#             print('entrei aqui')
+#             # Notifica todos os WebSockets conectados sobre o evento
+#             for ws in websockets:
+#                 if ws.client_state == WebSocketState.CONNECTED:
+#                     await run_in_threadpool(ws.send_text, f"Novo evento: {event}")
+#         except asyncio.QueueEmpty:
+#             await asyncio.sleep(0.1)
