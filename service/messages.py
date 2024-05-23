@@ -5,11 +5,13 @@ from fastapi.encoders import jsonable_encoder
 from service.auth import AuthService
 # from service.user import UserService
 from schemas.messages_schema import CreateConversation, SendMessage, UserGroupRole, ConversationType
+from schemas.notification_schema import NotificationType
 import models
 from queue import Queue
 from service.queue import QueueService
 
 event_queue = QueueService()
+
 
 class MessageService:
     def __init__(self, session: Optional[Session] = None):
@@ -113,10 +115,6 @@ class MessageService:
             self.session.add(conversation_model)
             self.session.commit()
 
-            event_queue.put(conversation_model.id)
-     
-            # print(list(QueueService.queue), 'lista no service')
-
             # ------------------------------------------------------------------------
 
             member_to_add_to_group = []
@@ -151,6 +149,12 @@ class MessageService:
             # se não tiver nenhum dado tem que retornar mensagem de lista vazia
             # se algum amigo não estiver na lista de amigos, não fazer a inserção do mesmo no grupo
             # se for mensagem pessoal então nem deve criar a mensgem, deve retornar uma mensagem de erro
+
+            # event_queue.put(conversation_model.id)
+            event_queue.put({'type': NotificationType.ON_NEW_CONVERSATION.value,
+                            'content': conversation_info.friends_list})
+
+            # print(list(QueueService.queue), 'lista no service')
 
         return f'{'Grupo' if len(conversation_info.friends_list) == 1 else 'Chat'} iniciado com sucesso!'
 

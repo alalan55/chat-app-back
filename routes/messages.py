@@ -5,11 +5,12 @@ from database import SessionLocal
 from typing import Optional
 from sqlalchemy.orm import Session
 from service.messages import MessageService, event_queue
+from service.notification import NotificationService
 from service.auth import AuthService
 from schemas.messages_schema import CreateConversation, SendMessage, GroupInfoResponse
 from response.messages import successful_response
 from typing import List
-import logging
+
 import asyncio
 from contextlib import asynccontextmanager
 from queue import Empty
@@ -17,9 +18,7 @@ from queue import Empty
 
 router = APIRouter(prefix='/message', tags=['Messages'])
 
-logging.basicConfig(level=logging.DEBUG)
-
-websockets: List[WebSocket] = []
+notification_service = NotificationService()
 
 
 def get_db():
@@ -47,7 +46,6 @@ async def health_messages():
 @router.get('/chat-list')
 async def get_chat_list(db: Session = Depends(get_db), user: dict = Depends(AuthService().get_current_user)):
     chat_list = await MessageService(db).get_chat_list(user)
-    # print(list(event_queue.queue), 'lista no chatlist')
     return successful_response(200, None, chat_list, '')
 
 
@@ -106,22 +104,20 @@ async def chat(ws: WebSocket, conversation_id: int, token: str = Query(...), db:
         # await message_manager.broadcast_message(f'Cliente #{conversation_id} deixou o chat')
 
 
-
-
 @router.websocket('/ws')
 async def websocket_endpoint(websocket: WebSocket):
 
-    await websocket.accept()
-    websockets.append(websocket)
+    await notification_service.connect(websocket)
+
     try:
         while True:
-
             try:
                 # Tente obter um evento da fila, mas não bloqueie
                 event = event_queue.get_self().get_nowait()
+                ws_list = await notification_service.get_websockets_list()
 
-                for ws in websockets:
-                    await ws.send_json({'conversation_created': event, 'notification_type': 1})
+                for ws in ws_list:
+                    await ws.send_json(event)
 
             except Empty:
                 if websocket.client_state != WebSocketState.CONNECTED:
@@ -129,33 +125,36 @@ async def websocket_endpoint(websocket: WebSocket):
                 await asyncio.sleep(1)
 
     except WebSocketDisconnect:
-
         pass
     finally:
-        websockets.remove(websocket)
+        await notification_service.disconnect(websocket)
 
 
 async def event_notifier(stop_event: asyncio.Event):
     while True and not stop_event.is_set():
         try:
             event = event_queue.get_self().get_nowait()
-
             disconnected_websockets = []
+
             # Notifica todos os WebSockets conectados sobre o evento
-            for ws in websockets:
+            ws_list = await notification_service.get_websockets_list()
+
+            for ws in ws_list:
                 if ws.client_state == WebSocketState.CONNECTED:
                     try:
-                        await ws.send_text(f"Novo evento: {event}")
+                        await run_in_threadpool(ws.send_json(event)) 
                     except WebSocketDisconnect:
                         disconnected_websockets.append(ws)
                 else:
                     disconnected_websockets.append(ws)
 
             for ws in disconnected_websockets:
-                websockets.remove(ws)
-        except Empty:
+                await notification_service.disconnect(ws)
+        # except Empty:
+        #     await asyncio.sleep(1)
+        except asyncio.QueueEmpty:
+            pass
             await asyncio.sleep(1)
-
 
 
 @asynccontextmanager
@@ -168,7 +167,8 @@ async def lifespan(app: FastAPI):
         # event_notifier_task.cancel()
         stop_event.set()
         await event_notifier_task
-        for ws in websockets:
+        ws_list = await notification_service.get_websockets_list()
+        for ws in ws_list:
             await ws.close()
 
 
@@ -178,8 +178,6 @@ def custom_message(status: Optional[int] = 200, content: Optional[dict | list | 
         'message': message,
         'content': content
     }
-
-
 
 
 # @router.websocket('/ws')
@@ -206,8 +204,6 @@ def custom_message(status: Optional[int] = 200, content: Optional[dict | list | 
 #         pass
 #     finally:
 #         websockets.remove(websocket)
-
-
 
 
 # async def event_notifier():
