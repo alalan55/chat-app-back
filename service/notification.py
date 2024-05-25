@@ -14,7 +14,7 @@ class NotificationService:
         return
 
     async def disconnect(self, ws: WebSocket):
-        ws.close()
+        await ws.close()
         self.websockets_list.remove(ws)
 
     async def get_websockets_list(self):

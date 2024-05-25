@@ -239,6 +239,11 @@ class MessageService:
 
             self.session.add(message_model)
             self.session.commit()
+
+            # adiciona a nova mensagem na fila para notificar os clientes online
+            event_queue.put({'type': NotificationType.ON_NEW_MESSAGE.value,
+                            'content': info.get('conversation_id'), 'from_user': info.get('from_user')})
+
             return message_model
 
     async def get_current_chat_info(self, chat_id: int, user: dict):
