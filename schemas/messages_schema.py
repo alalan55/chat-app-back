@@ -10,6 +10,12 @@ class CreateConversation(BaseModel):
     name: str
 
 
+class AddUserToConversation(BaseModel):
+      friends_list: list[int]
+      conversation_id: int
+
+
+
 class SendMessage(BaseModel):
     conversation_id: int
     from_user: str

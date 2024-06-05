@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from service.messages import MessageService, event_queue
 from service.notification import NotificationService
 from service.auth import AuthService
-from schemas.messages_schema import CreateConversation, SendMessage, GroupInfoResponse
+from schemas.messages_schema import CreateConversation, SendMessage, GroupInfoResponse, AddUserToConversation
 from response.messages import successful_response
 from typing import List
 
@@ -47,6 +47,12 @@ async def health_messages():
 async def get_chat_list(db: Session = Depends(get_db), user: dict = Depends(AuthService().get_current_user)):
     chat_list = await MessageService(db).get_chat_list(user)
     return successful_response(200, None, chat_list, '')
+
+
+@router.post('/add-user-on-group')
+async def add_user_on_group(conversation: AddUserToConversation, db: Session = Depends(get_db), user: dict = Depends(AuthService().get_current_user)):
+    response = await MessageService(db).add_users_to_conversatoin(conversation,  user)
+    return successful_response(200, None, response, '')
 
 
 @router.post('/create-conversation')
@@ -89,7 +95,7 @@ async def chat(ws: WebSocket, conversation_id: int, token: str = Query(...), db:
             data = await ws.receive_json()
 
             if "type" in data and data["type"] == "close":
-                message_manager.disconnect(ws, conversation_id)
+               await message_manager.disconnect(ws, conversation_id)
             else:
 
                 # adicionar mensagem no banco de dados
@@ -100,7 +106,7 @@ async def chat(ws: WebSocket, conversation_id: int, token: str = Query(...), db:
                 # await message_manager.send_personal_message(f"You wrote: {data}", ws)
 
     except WebSocketDisconnect:
-        message_manager.disconnect(ws, conversation_id)
+       await message_manager.disconnect(ws, conversation_id)
         # await message_manager.broadcast_message(f'Cliente #{conversation_id} deixou o chat')
 
 
@@ -142,7 +148,7 @@ async def event_notifier(stop_event: asyncio.Event):
             for ws in ws_list:
                 if ws.client_state == WebSocketState.CONNECTED:
                     try:
-                        await run_in_threadpool(ws.send_json(event)) 
+                        await run_in_threadpool(ws.send_json(event))
                     except WebSocketDisconnect:
                         disconnected_websockets.append(ws)
                 else:

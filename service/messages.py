@@ -4,7 +4,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from fastapi.encoders import jsonable_encoder
 from service.auth import AuthService
 # from service.user import UserService
-from schemas.messages_schema import CreateConversation, SendMessage, UserGroupRole, ConversationType
+from schemas.messages_schema import CreateConversation, SendMessage, UserGroupRole, ConversationType, AddUserToConversation
 from schemas.notification_schema import NotificationType
 import models
 from queue import Queue
@@ -108,6 +108,10 @@ class MessageService:
             conv_type = ConversationType.PERSONAL.value if len(
                 conversation_info.friends_list) == 1 else ConversationType.GROUP.value
 
+            # SE FOR UMA CONVERSA PESSOAL, VERIFICAR SE A MESMA JÁ EXISTE
+            # if conv_type == 1:
+            #     # IDENTIFICAR SE USUÁRIO ATUAL CRIOU ALGUMA CONVERSATION
+
             conversation_model = models.Conversations()
             conversation_model.created_by = user_id
             conversation_model.conversation_name = conversation_info.name
@@ -157,6 +161,47 @@ class MessageService:
             # print(list(QueueService.queue), 'lista no service')
 
         return f'{'Grupo' if len(conversation_info.friends_list) == 1 else 'Chat'} iniciado com sucesso!'
+
+    async def add_users_to_conversatoin(self, conversation_info: AddUserToConversation, user: dict):
+        user_is_valid = AuthService(self.session).user_is_validated(user)
+
+        if user_is_valid:
+
+            user_list = []
+            member_list = []
+
+            # for id in conversation_info.friends_list:
+            #     user = self.session.query(models.Users).filter(
+            #         models.Users.id == id).first()
+            #     if user:
+            #         user_list.append(user)
+
+            # for user in user_list:
+            #     member = models.GroupMembers()
+            #     member.conversation_id = conversation_info.conversation_id
+            #     member.user_id = user.id
+            #     member.joined_datetime = ''
+            #     member.left_datetime = ''
+            #     member.role = UserGroupRole.NORMAL.value
+            #     member_list.append(member)
+
+            for id in conversation_info.friends_list:
+                member = models.GroupMembers()
+                member.conversation_id = conversation_info.conversation_id
+                member.user_id = id
+                member.joined_datetime = ''
+                member.left_datetime = ''
+                member.role = UserGroupRole.NORMAL.value
+                member_list.append(member)
+
+            # self.session.bulk_save_objects(member_list)
+            self.session.add_all(member_list)
+            self.session.commit()
+
+            event_queue.put({'type': NotificationType.ON_ADD_ON_GROUP.value,
+                            'content': conversation_info.friends_list})
+
+            return 'OK'
 
     async def get_chat_list(self, user: dict):
         user_is_valid = AuthService(self.session).user_is_validated(user)
